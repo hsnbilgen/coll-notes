@@ -187,19 +187,54 @@ The frontend proxies `/api` and `/collab` via Vite's dev proxy — no nginx need
 
 ## Running Tests
 
-Backend integration tests run against a separate `collnotes_test` database (derived automatically from `DATABASE_URL`). The test suite requires a running PostgreSQL instance.
+**Backend** (requires PostgreSQL running locally):
 
 ```bash
 cd backend
-npm test
+npm test        # runs all 33 integration tests against collnotes_test DB
 ```
 
-The test setup:
-- Runs `prisma migrate deploy` on `collnotes_test` before the suite
-- Clears all tables in `beforeEach` so tests are fully isolated
-- `fileParallelism: false` prevents FK constraint races between test files
+The test setup derives the test DB URL from `DATABASE_URL` in `backend/.env` (replaces `/collnotes` with `/collnotes_test`), runs migrations in `beforeAll`, and clears all tables in `beforeEach` for full isolation. `fileParallelism: false` prevents FK constraint races between test files.
 
-Current coverage: **20 tests** across auth (register, login, validation) and documents (CRUD, ownership isolation, soft delete, restore, duplicate, content save, activity).
+**Frontend** (no DB required — all API calls are intercepted by MSW):
+
+```bash
+cd frontend
+npm test        # runs all 19 component and hook tests
+```
+
+**Coverage: 52 tests total**
+
+| Suite | Tests |
+|---|---|
+| Backend: auth | 5 |
+| Backend: documents (CRUD, isolation, duplicate, content, activity) | 20 |
+| Backend: versioning (save, list, restore, ownership) | 7 |
+| Backend: sharing (create, resolve, permissions, auth) | 6 |
+| Frontend: LoginForm | 3 |
+| Frontend: useDocuments | 2 |
+| Frontend: useVersions | 3 |
+| Frontend: DocumentItem | 6 |
+| Frontend: useAuth | 4 |
+
+## CI / GitHub Actions
+
+The CI pipeline runs on every push and pull request to `main` via `.github/workflows/ci.yml`. It has three jobs:
+
+1. **Backend** — spins up a Postgres 17 service container, installs deps, generates Prisma client, TypeScript check, runs all 33 tests
+2. **Frontend** — installs deps, TypeScript check, runs all 19 tests
+3. **Docker** — runs after both pass, builds all three images from `.env.example`
+
+**Required GitHub repository secrets** — set these under *Settings → Secrets and variables → Actions*:
+
+| Secret | Example value | Notes |
+|---|---|---|
+| `POSTGRES_USER` | `postgres` | Used by CI Postgres service and `DATABASE_URL` |
+| `POSTGRES_PASSWORD` | `strongpassword` | Used by CI Postgres service and `DATABASE_URL` |
+| `POSTGRES_DB` | `collnotes` | Database name |
+| `JWT_SECRET` | `long-random-string` | Must be at least 32 characters |
+
+The `DATABASE_URL` is assembled from the above secrets inside the workflow — no connection string is stored as a secret directly.
 
 ---
 
@@ -209,9 +244,9 @@ Current coverage: **20 tests** across auth (register, login, validation) and doc
 
 The two main approaches to collaborative editing are Operational Transformation (OT) and CRDTs.
 
-**OT** (used by Google Docs, SharePoint): each operation is transformed against concurrent operations before being applied. Requires the server to coordinate every pair of concurrent edits — O(N²) transform complexity, and correctness depends on getting every transform function right for every operation type combination.
+**OT** (used by Google Docs, SharePoint): each operation is transformed against concurrent operations before being applied. Requires the server to coordinate every pair of concurrent edits - O(N²) transform complexity, and correctness depends on getting every transform function right for every operation type combination.
 
-**CRDT** (Conflict-free Replicated Data Type): operations are designed so that any two replicas converge to the same state regardless of the order updates are applied. No server coordination required for merging — the server is just a relay and persistence layer.
+**CRDT** (Conflict-free Replicated Data Type): operations are designed so that any two replicas converge to the same state regardless of the order updates are applied. No server coordination required for merging - the server is just a relay and persistence layer.
 
 **Chosen approach: Yjs CRDT.** Reasons:
 - Mathematical correctness guarantee — no edge cases in transform functions to miss
@@ -244,7 +279,7 @@ In Docker, the frontend nginx container proxies both `/api` (HTTP) and `/collab`
 **Claude Code (claude-sonnet-4-6)** was used throughout this project.
 
 **Where it was genuinely useful:**
-- Scaffolding the Prisma schema, Express route structure, and React hook patterns — fast to generate, easy to review
+- Scaffolding the Prisma schema, Express route structure, and React hook patterns - fast to generate, easy to review
 - Explaining the Yjs awareness API and `setPersistence` hook (y-websocket internals are sparsely documented)
 - Generating the Docker Compose configuration and nginx WebSocket proxy config
 
@@ -259,8 +294,8 @@ In Docker, the frontend nginx container proxies both `/api` (HTTP) and `/collab`
 
 ## What I'd Build Next
 
-1. **Redis pub/sub** — horizontal WebSocket scaling: multiple Node.js instances share document state via a Redis channel rather than an in-process `Map`
+1. **Redis pub/sub** - horizontal WebSocket scaling: multiple Node.js instances share document state via a Redis channel rather than an in-process `Map`
 2. **Character-level version history** — store the Yjs operation log rather than full snapshots, enabling Google Docs-style per-keystroke playback
-3. **Inline comments** — select text, anchor a comment thread, resolve/reopen comments; stored as Yjs marks to survive collaborative edits
-4. **Full-text search** — PostgreSQL `tsvector` index on document text content, extracted from Yjs state on save
-5. **Document templates** — save any document as a reusable template; new documents can be created from a template
+3. **Inline comments** - select text, anchor a comment thread, resolve/reopen comments; stored as Yjs marks to survive collaborative edits
+4. **Full-text search** - PostgreSQL `tsvector` index on document text content, extracted from Yjs state on save
+5. **Document templates** - save any document as a reusable template; new documents can be created from a template
