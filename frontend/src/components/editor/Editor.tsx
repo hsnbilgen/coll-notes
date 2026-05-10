@@ -3,6 +3,8 @@ import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import Placeholder from '@tiptap/extension-placeholder'
+import Underline from '@tiptap/extension-underline'
+import { Extension } from '@tiptap/core'
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
@@ -21,16 +23,32 @@ import { getToken } from '@/lib/auth'
 const USER_COLORS = ['#F44336', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800', '#00BCD4']
 function randomColor() { return USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)] }
 
+// Press Mod+Enter to exit a code block and continue writing below
+const CodeBlockExit = Extension.create({
+  name: 'codeBlockExit',
+  addKeyboardShortcuts() {
+    return {
+      'Mod-Enter': ({ editor }) => {
+        if (!editor.isActive('codeBlock')) return false
+        return editor.chain().focus().exitCode().setNode('paragraph').run()
+      },
+    }
+  },
+})
+
 interface Props {
   documentId: string
   readOnly?: boolean
+  onProviderReady?: (provider: WebsocketProvider) => void
 }
 
-export function Editor({ documentId, readOnly = false }: Props) {
+export function Editor({ documentId, readOnly = false, onProviderReady }: Props) {
   const user = useCurrentUser()
   const { isFocused } = useFocus()
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const versionTimerRef = useRef<ReturnType<typeof setInterval>>()
+  // Stable color for this browser session — doesn't change on re-render
+  const userColor = useRef(randomColor())
   const [ydoc] = useState(() => new Y.Doc())
   const [provider, setProvider] = useState<WebsocketProvider | null>(null)
 
@@ -39,7 +57,8 @@ export function Editor({ documentId, readOnly = false }: Props) {
 
   useEffect(() => {
     const token = getToken()
-    const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? 'ws://localhost:3002'
+    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? `${wsProto}//${window.location.host}/collab`
     // @ts-ignore
     const wp = new WebsocketProvider(wsUrl, documentId, ydoc, {
       params: { token: token || '', documentId },
@@ -47,8 +66,9 @@ export function Editor({ documentId, readOnly = false }: Props) {
     // @ts-ignore
     const persistence = new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc)
     // @ts-ignore
-    wp.awareness.setLocalStateField('user', { name: user?.email || 'Anonymous', color: randomColor() })
+    wp.awareness.setLocalStateField('user', { name: user?.email || 'Anonymous', color: userColor.current })
     setProvider(wp)
+    onProviderReady?.(wp)
 
     return () => {
       // @ts-ignore
@@ -62,7 +82,7 @@ export function Editor({ documentId, readOnly = false }: Props) {
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       const state = Y.encodeStateAsUpdate(ydoc)
-      await api.patch(`/documents/${documentId}`, { content: Array.from(state) }).catch(() => {})
+      await api.patch(`/documents/${documentId}/content`, { content: Array.from(state) }).catch(() => {})
     }, 1500)
   }, [documentId, ydoc])
 
@@ -72,10 +92,12 @@ export function Editor({ documentId, readOnly = false }: Props) {
       Collaboration.configure({ document: ydoc }),
       ...(provider ? [CollaborationCursor.configure({
         provider,
-        user: { name: user?.email || 'Anonymous', color: '#2196F3' },
+        user: { name: user?.email || 'Anonymous', color: userColor.current },
       })] : []),
       Placeholder.configure({ placeholder: "Start writing, or type '/' for commands…" }),
+      Underline,
       SlashCommands,
+      CodeBlockExit,
     ],
     editable: !readOnly,
     onUpdate: debouncedSave,
@@ -97,7 +119,7 @@ export function Editor({ documentId, readOnly = false }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      {!readOnly && (
+      {!readOnly && !isFocused && (
         <div className="flex items-center border-b">
           <EditorToolbar editor={editor} />
           <PresenceAvatars provider={provider} />

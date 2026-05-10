@@ -84,4 +84,103 @@ describe('Document CRUD', () => {
       .send({ title: 'Stolen' })
     expect(res.status).toBe(404)
   })
+
+  it('auto-increments Untitled title when name is taken', async () => {
+    const token = await registerAndGetToken()
+    const first = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const second = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    expect(first.body.title).toBe('Untitled')
+    expect(second.body.title).toBe('Untitled-1')
+  })
+})
+
+describe('Document duplicate', () => {
+  it('creates a copy with prefixed title and same content', async () => {
+    const token = await registerAndGetToken('dup@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const id = create.body.id
+
+    await request(app)
+      .patch(`/api/documents/${id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Meeting Notes' })
+
+    const res = await request(app)
+      .post(`/api/documents/${id}/duplicate`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(201)
+    expect(res.body.title).toBe('Copy of Meeting Notes')
+    expect(res.body.id).not.toBe(id)
+  })
+
+  it('returns 404 when duplicating a non-existent document', async () => {
+    const token = await registerAndGetToken('dup2@example.com')
+    const res = await request(app)
+      .post('/api/documents/nonexistent-id/duplicate')
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(404)
+  })
+
+  it('cannot duplicate another user document', async () => {
+    const token1 = await registerAndGetToken('dupowner@example.com')
+    const token2 = await registerAndGetToken('dupother@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token1}`)
+    const id = create.body.id
+    const res = await request(app)
+      .post(`/api/documents/${id}/duplicate`)
+      .set('Authorization', `Bearer ${token2}`)
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('Document content', () => {
+  it('saves binary content and returns ok', async () => {
+    const token = await registerAndGetToken('content@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const id = create.body.id
+    const res = await request(app)
+      .patch(`/api/documents/${id}/content`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ content: [1, 2, 3, 4, 5] })
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+  })
+
+  it('returns 404 saving content for another user document', async () => {
+    const token1 = await registerAndGetToken('contentowner@example.com')
+    const token2 = await registerAndGetToken('contentother@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token1}`)
+    const id = create.body.id
+    const res = await request(app)
+      .patch(`/api/documents/${id}/content`)
+      .set('Authorization', `Bearer ${token2}`)
+      .send({ content: [1, 2, 3] })
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('Document activity', () => {
+  it('returns activity with created event', async () => {
+    const token = await registerAndGetToken('activity@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const id = create.body.id
+    const res = await request(app)
+      .get(`/api/documents/${id}/activity`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(200)
+    expect(res.body).toBeInstanceOf(Array)
+    expect(res.body[0].type).toBe('created')
+    expect(res.body[0].label).toBe('Document created')
+  })
+
+  it('returns 404 for activity on another user document', async () => {
+    const token1 = await registerAndGetToken('actowner@example.com')
+    const token2 = await registerAndGetToken('actother@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token1}`)
+    const id = create.body.id
+    const res = await request(app)
+      .get(`/api/documents/${id}/activity`)
+      .set('Authorization', `Bearer ${token2}`)
+    expect(res.status).toBe(404)
+  })
 })

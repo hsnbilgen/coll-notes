@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { requireAuth, AuthRequest } from '../middleware/auth'
 import { listVersions, restoreVersion, createVersion } from '../services/version.service'
+import { evictRoom } from '../websocket/server'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
@@ -31,6 +32,7 @@ router.post('/:id/versions', async (req: AuthRequest, res, next) => {
 router.post('/:id/versions/:vid/restore', async (req: AuthRequest, res, next) => {
   try {
     const result = await restoreVersion(req.params.id as string, req.params.vid as string, req.user!.id)
+    evictRoom(req.params.id as string)
     res.json(result)
   } catch (err) { next(err) }
 })

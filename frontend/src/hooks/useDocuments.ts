@@ -57,3 +57,11 @@ export function useRestoreDocument() {
     },
   })
 }
+
+export function useDuplicateDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post<Document>(`/documents/${id}/duplicate`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+  })
+}

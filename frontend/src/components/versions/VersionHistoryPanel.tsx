@@ -4,9 +4,10 @@ import { VersionItem } from './VersionItem'
 interface Props {
   documentId: string
   onClose: () => void
+  onRestored: () => void
 }
 
-export function VersionHistoryPanel({ documentId, onClose }: Props) {
+export function VersionHistoryPanel({ documentId, onClose, onRestored }: Props) {
   const { data: versions, isLoading } = useVersions(documentId)
 
   return (
@@ -24,6 +25,7 @@ export function VersionHistoryPanel({ documentId, onClose }: Props) {
             documentId={documentId}
             createdAt={v.createdAt}
             isLatest={i === 0}
+            onRestored={() => { onRestored(); onClose() }}
           />
         ))}
         {versions?.length === 0 && (

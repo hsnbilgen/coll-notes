@@ -3,7 +3,7 @@ import { AppError } from '../middleware/errorHandler'
 
 export async function createVersion(documentId: string, content: Buffer) {
   return prisma.documentVersion.create({
-    data: { documentId, content },
+    data: { documentId, content: new Uint8Array(content) },
     select: { id: true, documentId: true, createdAt: true },
   })
 }
@@ -27,12 +27,12 @@ export async function restoreVersion(documentId: string, versionId: string, owne
 
   const result = await prisma.document.updateMany({
     where: { id: documentId, ownerId, isDeleted: false },
-    data: { content: version.content, updatedAt: new Date() },
+    data: { content: new Uint8Array(version.content), updatedAt: new Date() },
   })
   if (result.count === 0) throw new AppError(404, 'Document not found')
 
   await prisma.documentVersion.create({
-    data: { documentId, content: version.content },
+    data: { documentId, content: new Uint8Array(version.content) },
   })
 
   return { id: documentId, restoredFromVersion: versionId }

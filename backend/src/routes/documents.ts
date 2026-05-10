@@ -8,6 +8,9 @@ import {
   renameDocument,
   softDeleteDocument,
   restoreDocument,
+  saveDocumentContent,
+  getDocumentActivity,
+  duplicateDocument,
 } from '../services/document.service'
 
 const router = Router()
@@ -54,6 +57,28 @@ router.post('/:id/restore', async (req: AuthRequest, res, next) => {
   try {
     const doc = await restoreDocument(req.params.id as string, req.user!.id)
     res.json(doc)
+  } catch (err) { next(err) }
+})
+
+router.patch('/:id/content', async (req: AuthRequest, res, next) => {
+  try {
+    const { content } = z.object({ content: z.array(z.number()) }).parse(req.body)
+    await saveDocumentContent(req.params.id as string, req.user!.id, Buffer.from(content))
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+})
+
+router.get('/:id/activity', async (req: AuthRequest, res, next) => {
+  try {
+    const activity = await getDocumentActivity(req.params.id as string, req.user!.id)
+    res.json(activity)
+  } catch (err) { next(err) }
+})
+
+router.post('/:id/duplicate', async (req: AuthRequest, res, next) => {
+  try {
+    const doc = await duplicateDocument(req.params.id as string, req.user!.id)
+    res.status(201).json(doc)
   } catch (err) { next(err) }
 })
 

@@ -14,11 +14,14 @@ export function useVersions(documentId: string) {
   })
 }
 
-export function useRestoreVersion(documentId: string) {
+export function useRestoreVersion(documentId: string, onRestored?: () => void) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (versionId: string) =>
       api.post(`/documents/${documentId}/versions/${versionId}/restore`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['versions', documentId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['versions', documentId] })
+      onRestored?.()
+    },
   })
 }

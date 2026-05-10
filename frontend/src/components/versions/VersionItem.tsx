@@ -5,10 +5,11 @@ interface Props {
   documentId: string
   createdAt: string
   isLatest: boolean
+  onRestored: () => void
 }
 
-export function VersionItem({ id, documentId, createdAt, isLatest }: Props) {
-  const restore = useRestoreVersion(documentId)
+export function VersionItem({ id, documentId, createdAt, isLatest, onRestored }: Props) {
+  const restore = useRestoreVersion(documentId, onRestored)
 
   return (
     <div className="flex items-center justify-between px-3 py-2 text-sm border-b last:border-0">
@@ -22,7 +23,7 @@ export function VersionItem({ id, documentId, createdAt, isLatest }: Props) {
           disabled={restore.isPending}
           className="text-xs px-2 py-1 rounded border hover:bg-accent disabled:opacity-50"
         >
-          Restore
+          {restore.isPending ? 'Restoring…' : 'Restore'}
         </button>
       )}
     </div>
