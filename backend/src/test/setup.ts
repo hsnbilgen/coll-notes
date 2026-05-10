@@ -1,7 +1,10 @@
 import { execFileSync } from 'child_process'
 import { PrismaClient } from '@prisma/client'
 
-const TEST_DATABASE_URL = process.env.DATABASE_URL!.replace('/collnotes', '/collnotes_test')
+if (!process.env.DATABASE_URL?.includes('/collnotes')) {
+  throw new Error('DATABASE_URL must contain "/collnotes" to safely derive test database URL')
+}
+const TEST_DATABASE_URL = process.env.DATABASE_URL.replace('/collnotes', '/collnotes_test')
 
 process.env.DATABASE_URL = TEST_DATABASE_URL
 process.env.JWT_SECRET = 'test-secret'

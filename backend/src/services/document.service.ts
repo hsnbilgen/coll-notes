@@ -25,41 +25,35 @@ export async function createDocument(ownerId: string) {
 }
 
 export async function renameDocument(id: string, ownerId: string, title: string) {
-  const doc = await prisma.document.findFirst({ where: { id, ownerId, isDeleted: false } })
-  if (!doc) throw new AppError(404, 'Document not found')
-  return prisma.document.update({
-    where: { id },
+  const result = await prisma.document.updateMany({
+    where: { id, ownerId, isDeleted: false },
     data: { title },
-    select: { id: true, title: true, updatedAt: true },
   })
+  if (result.count === 0) throw new AppError(404, 'Document not found')
+  return prisma.document.findUnique({ where: { id } })
 }
 
 export async function softDeleteDocument(id: string, ownerId: string) {
-  const doc = await prisma.document.findFirst({ where: { id, ownerId, isDeleted: false } })
-  if (!doc) throw new AppError(404, 'Document not found')
-  return prisma.document.update({
-    where: { id },
+  const result = await prisma.document.updateMany({
+    where: { id, ownerId, isDeleted: false },
     data: { isDeleted: true, deletedAt: new Date() },
-    select: { id: true },
   })
+  if (result.count === 0) throw new AppError(404, 'Document not found')
 }
 
 export async function restoreDocument(id: string, ownerId: string) {
-  const doc = await prisma.document.findFirst({ where: { id, ownerId, isDeleted: true } })
-  if (!doc) throw new AppError(404, 'Document not found in trash')
-  return prisma.document.update({
-    where: { id },
+  const result = await prisma.document.updateMany({
+    where: { id, ownerId, isDeleted: true },
     data: { isDeleted: false, deletedAt: null },
-    select: { id: true, title: true, updatedAt: true },
   })
+  if (result.count === 0) throw new AppError(404, 'Document not found')
+  return prisma.document.findUnique({ where: { id } })
 }
 
 export async function saveDocumentContent(id: string, ownerId: string, content: Buffer) {
-  const doc = await prisma.document.findFirst({ where: { id, ownerId, isDeleted: false } })
-  if (!doc) throw new AppError(404, 'Document not found')
-  return prisma.document.update({
-    where: { id },
-    data: { content, updatedAt: new Date() },
-    select: { id: true, updatedAt: true },
+  const result = await prisma.document.updateMany({
+    where: { id, ownerId, isDeleted: false },
+    data: { content },
   })
+  if (result.count === 0) throw new AppError(404, 'Document not found')
 }

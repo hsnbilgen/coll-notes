@@ -35,7 +35,7 @@ describe('POST /api/auth/register', () => {
       password: 'short',
       name: 'User',
     })
-    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(res.status).toBe(422)
   })
 })
 

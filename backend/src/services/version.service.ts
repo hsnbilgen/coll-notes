@@ -20,18 +20,16 @@ export async function listVersions(documentId: string, ownerId: string) {
 }
 
 export async function restoreVersion(documentId: string, versionId: string, ownerId: string) {
-  const doc = await prisma.document.findFirst({ where: { id: documentId, ownerId, isDeleted: false } })
-  if (!doc) throw new AppError(404, 'Document not found')
-
   const version = await prisma.documentVersion.findFirst({
     where: { id: versionId, documentId },
   })
   if (!version) throw new AppError(404, 'Version not found')
 
-  await prisma.document.update({
-    where: { id: documentId },
+  const result = await prisma.document.updateMany({
+    where: { id: documentId, ownerId, isDeleted: false },
     data: { content: version.content, updatedAt: new Date() },
   })
+  if (result.count === 0) throw new AppError(404, 'Document not found')
 
   await prisma.documentVersion.create({
     data: { documentId, content: version.content },

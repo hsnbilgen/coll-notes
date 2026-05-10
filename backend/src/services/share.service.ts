@@ -25,7 +25,14 @@ export async function resolveShare(token: string) {
     where: { token },
     include: {
       document: {
-        select: { id: true, title: true, content: true, isDeleted: true },
+        select: {
+          id: true,
+          title: true,
+          ownerId: true,
+          isDeleted: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       },
     },
   })
