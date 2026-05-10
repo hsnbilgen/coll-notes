@@ -38,21 +38,21 @@ router.post('/', async (req: AuthRequest, res, next) => {
 router.patch('/:id', async (req: AuthRequest, res, next) => {
   try {
     const { title } = z.object({ title: z.string().min(1) }).parse(req.body)
-    const doc = await renameDocument(req.params.id, req.user!.id, title)
+    const doc = await renameDocument(req.params.id as string, req.user!.id, title)
     res.json(doc)
   } catch (err) { next(err) }
 })
 
 router.delete('/:id', async (req: AuthRequest, res, next) => {
   try {
-    await softDeleteDocument(req.params.id, req.user!.id)
+    await softDeleteDocument(req.params.id as string, req.user!.id)
     res.json({ ok: true })
   } catch (err) { next(err) }
 })
 
 router.post('/:id/restore', async (req: AuthRequest, res, next) => {
   try {
-    const doc = await restoreDocument(req.params.id, req.user!.id)
+    const doc = await restoreDocument(req.params.id as string, req.user!.id)
     res.json(doc)
   } catch (err) { next(err) }
 })

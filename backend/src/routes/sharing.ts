@@ -14,7 +14,7 @@ router.post('/documents/:id/share', requireAuth, async (req: AuthRequest, res, n
     }).parse(req.body)
 
     const result = await createShare(
-      req.params.id,
+      req.params.id as string,
       req.user!.id,
       permission as SharePermission,
       expiresAt ? new Date(expiresAt) : undefined
