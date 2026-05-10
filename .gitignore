@@ -10,7 +10,7 @@ build/
 .env.local
 
 # Prisma
-backend/prisma/migrations/
+# Note: migrations ARE committed (do not ignore)
 
 # Logs
 *.log
