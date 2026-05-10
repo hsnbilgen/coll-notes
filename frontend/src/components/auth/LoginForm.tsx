@@ -10,8 +10,12 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await login.mutateAsync({ email, password })
-    navigate('/')
+    try {
+      await login.mutateAsync({ email, password })
+      navigate('/')
+    } catch {
+      // error displayed via login.error
+    }
   }
 
   return (

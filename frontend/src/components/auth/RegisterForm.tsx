@@ -11,8 +11,12 @@ export function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await register.mutateAsync({ name, email, password })
-    navigate('/')
+    try {
+      await register.mutateAsync({ name, email, password })
+      navigate('/')
+    } catch {
+      // error displayed via register.error
+    }
   }
 
   return (

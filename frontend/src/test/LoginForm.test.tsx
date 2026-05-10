@@ -36,4 +36,19 @@ describe('LoginForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
     await waitFor(() => expect(screen.getByText(/signing in/i)).toBeInTheDocument())
   })
+
+  it('shows error message on login failure', async () => {
+    server.use(
+      http.post('/api/auth/login', () =>
+        HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+      )
+    )
+    render(<LoginForm />, { wrapper })
+    fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'bad@example.com' } })
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'wrongpass' } })
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await waitFor(() =>
+      expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument()
+    )
+  })
 })

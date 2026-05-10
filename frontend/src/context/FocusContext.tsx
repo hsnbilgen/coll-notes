@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
 
 interface FocusContextValue {
   isFocused: boolean
@@ -15,13 +15,13 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem('focus-mode') === 'true'
   })
 
-  const toggleFocus = () => {
+  const toggleFocus = useCallback(() => {
     setIsFocused((prev) => {
       const next = !prev
       localStorage.setItem('focus-mode', String(next))
       return next
     })
-  }
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

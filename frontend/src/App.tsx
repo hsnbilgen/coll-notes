@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { FocusProvider } from '@/context/FocusContext'
 import { LoginPage } from '@/pages/LoginPage'
@@ -10,7 +11,15 @@ import { getToken } from '@/lib/auth'
 const queryClient = new QueryClient()
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  return getToken() ? <>{children}</> : <Navigate to="/login" replace />
+  const [hasToken, setHasToken] = useState(() => !!getToken())
+
+  useEffect(() => {
+    const check = () => setHasToken(!!getToken())
+    window.addEventListener('storage', check)
+    return () => window.removeEventListener('storage', check)
+  }, [])
+
+  return hasToken ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 export default function App() {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import * as Y from 'yjs'
 // @ts-ignore
 import { WebsocketProvider } from 'y-websocket'
@@ -13,33 +13,37 @@ function randomColor() {
 }
 
 export function useCollabEditor(documentId: string, userName: string) {
-  const ydoc = useMemo(() => new Y.Doc(), [documentId])
-
-  const provider = useMemo(() => {
-    const token = getToken()
-    const wsUrl = `ws://localhost:3002`
-    return new WebsocketProvider(wsUrl, documentId, ydoc, {
-      params: { token: token || '', documentId },
-    })
-  }, [documentId, ydoc])
-
-  const persistence = useMemo(
-    () => new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc),
-    [documentId, ydoc]
-  )
+  const ydocRef = useRef<Y.Doc | null>(null)
+  const providerRef = useRef<WebsocketProvider | null>(null)
 
   useEffect(() => {
+    const ydoc = new Y.Doc()
+    const token = getToken()
+    const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? 'ws://localhost:3002'
+    // @ts-ignore — y-websocket types may be incomplete
+    const provider = new WebsocketProvider(wsUrl, documentId, ydoc, {
+      params: { token: token || '', documentId },
+    })
+    // @ts-ignore
+    const persistence = new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc)
+
+    // @ts-ignore
     provider.awareness.setLocalStateField('user', {
       name: userName,
       color: randomColor(),
     })
 
+    ydocRef.current = ydoc
+    providerRef.current = provider
+
     return () => {
+      // @ts-ignore
       provider.disconnect()
+      // @ts-ignore
       persistence.destroy()
       ydoc.destroy()
     }
-  }, [provider, persistence, ydoc, userName])
+  }, [documentId, userName])
 
-  return { ydoc, provider }
+  return { ydocRef, providerRef }
 }
