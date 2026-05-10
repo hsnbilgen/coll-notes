@@ -1,111 +1,266 @@
 # coll-notes
 
-A real-time collaborative note-taking application. Multiple users can edit the same document simultaneously with conflict-free merging, presence indicators, and a full version history.
+A real-time collaborative note-taking application built as a full-stack engineering assignment. Multiple users can edit the same document simultaneously — edits merge without conflicts, cursors appear live, and the full version history is always one click away.
+
+---
+
+## Table of Contents
+
+1. [Features](#features)
+2. [Tech Stack](#tech-stack)
+3. [How It Works](#how-it-works)
+4. [Quick Start with Docker](#quick-start-with-docker)
+5. [Manual Setup](#manual-setup)
+6. [Running Tests](#running-tests)
+7. [Design Decisions](#design-decisions)
+8. [AI Tools Used](#ai-tools-used)
+9. [What I'd Build Next](#what-id-build-next)
+
+---
 
 ## Features
 
-- **Block-based editor** — headings, bullet lists, code blocks, slash commands (`/heading`, `/code`, `/meeting`, `/decision`)
-- **Real-time collaboration** — multiple users, live cursors, presence avatars
-- **Conflict-free sync** — CRDT via Yjs; concurrent edits always merge correctly
-- **Offline support** — edits queue locally (IndexedDB), sync on reconnect
-- **Document versioning** — auto-snapshot every 5 minutes, restore any version
-- **Document sharing** — shareable read-only or editable links
-- **Focus mode** — distraction-free writing (⌘⇧F)
-- **User workspaces** — JWT auth, documents are owner-isolated
+| Feature | Details |
+|---|---|
+| Rich text editor | Headings, lists, code blocks, blockquotes, slash commands (`/`) |
+| Real-time collaboration | Multiple users edit simultaneously, changes merge instantly |
+| Live presence | Colored cursors in the document, avatar stack in the toolbar |
+| Offline support | Edits persist locally in IndexedDB, sync automatically on reconnect |
+| Version history | Auto-snapshot every 5 minutes, restore any previous version |
+| Document sharing | Generate read-only or editable shareable links |
+| Activity feed | Real-time "who's here" + edit history timeline per document |
+| User workspaces | Each user's documents are fully isolated via JWT auth |
+| Soft delete / trash | Documents go to trash, can be restored or stay deleted |
+| Focus mode | Distraction-free writing (⌘⇧F), centered 680px column |
+| Duplicate document | Copy any document with its full content |
+
+---
 
 ## Tech Stack
 
-| Layer | Technology | Why |
+| Layer | Technology | Version |
 |---|---|---|
-| Backend | Node.js + Express + TypeScript | Familiar, minimal overhead |
-| Database | PostgreSQL + Prisma | Relational, type-safe queries |
-| Real-time | Yjs + y-websocket | Production CRDT, Tiptap first-class support |
-| Editor | Tiptap 2 | Best Yjs integration, extensible |
-| Frontend | React 18 + Vite | Fast DX, modern tooling |
-| UI | shadcn/ui + Tailwind | Accessible components, utility-first styling |
-| Data fetching | TanStack Query v5 | Client-side cache, optimistic updates |
+| Backend runtime | Node.js | 22 LTS |
+| Backend framework | Express | 4 |
+| Language | TypeScript | 5 |
+| ORM | Prisma | 7 |
+| Database | PostgreSQL | 17 |
+| Real-time sync | Yjs + y-websocket | 13 / 2 |
+| Editor | Tiptap 2 + ProseMirror | 2.10 |
+| Frontend framework | React | 18 |
+| Frontend build | Vite | 6 |
+| UI components | shadcn/ui + Tailwind CSS | — |
+| Data fetching | TanStack Query | v5 |
+| Auth | JWT (jsonwebtoken + bcryptjs) | — |
+| Containerisation | Docker + Docker Compose | — |
+| Testing | Vitest + Supertest | — |
 
-## Architecture
+---
+
+## How It Works
+
+### System Architecture
 
 ```
-┌──────────────┐     REST (3001)     ┌─────────────────────┐
-│   React SPA  │ ←────────────────→  │   Express API        │
-│   (port 5173)│                     │   auth / documents   │
-│              │     WS (3002)       │   versions / sharing │
-│              │ ←────────────────→  │                      │
-└──────────────┘     y-websocket     │   y-websocket server │
-                                     └──────────┬──────────┘
-                                                │
-                                     ┌──────────▼──────────┐
-                                     │      PostgreSQL      │
-                                     │      (port 5432)     │
-                                     └─────────────────────┘
+┌──────────────────────────────────────────┐
+│              Browser (React SPA)          │
+│                                          │
+│  ┌────────────┐    ┌───────────────────┐ │
+│  │  Tiptap    │    │  y-websocket      │ │
+│  │  Editor    │←──→│  WebsocketProvider│ │
+│  │            │    │  (Yjs CRDT)       │ │
+│  └─────┬──────┘    └────────┬──────────┘ │
+│        │ REST /api           │ WS /collab │
+└────────┼────────────────────┼────────────┘
+         │                    │
+   ┌─────▼────────────────────▼──────────┐
+   │           nginx (port 5173)          │
+   │   /api  →  backend:3001             │
+   │   /collab → backend:3002 (WS)       │
+   └─────────────────┬───────────────────┘
+                     │
+   ┌─────────────────▼───────────────────┐
+   │         Express API (port 3001)      │
+   │  /api/auth      register, login      │
+   │  /api/documents CRUD, share, content │
+   │  /api/documents/:id/versions         │
+   │  /api/share/:token   resolve share   │
+   └─────────────────┬───────────────────┘
+                     │
+   ┌─────────────────▼───────────────────┐
+   │      y-websocket server (port 3002)  │
+   │  room per documentId                 │
+   │  JWT + share token auth on connect   │
+   │  Yjs state persisted to PostgreSQL   │
+   └─────────────────┬───────────────────┘
+                     │
+   ┌─────────────────▼───────────────────┐
+   │          PostgreSQL (port 5432)      │
+   │  User, Document, DocumentVersion,    │
+   │  DocumentShare                       │
+   └─────────────────────────────────────┘
 ```
 
-## Real-time Sync: Why CRDT over OT
+### Real-time Collaboration Flow
 
-Operational Transformation (OT) requires the server to transform every pair of concurrent operations — O(N²) complexity that requires a central coordinating server. CRDTs (Conflict-free Replicated Data Types) are mathematically guaranteed to converge regardless of operation order; merges are commutative and associative.
+1. When a user opens a document, the frontend creates a `Y.Doc` (Yjs document) and connects a `WebsocketProvider` to `wss://<host>/collab` with the `documentId` as the room name and the user's JWT as a query parameter.
+2. The backend WebSocket server authenticates the connection (JWT owner check or valid share token), then calls `setupWSConnection` from `y-websocket` which handles the full Yjs sync protocol — exchanging state vectors and broadcasting updates between all clients in the room.
+3. Tiptap's `Collaboration` extension binds its document state directly to the `Y.Doc`. Every keystroke produces a Yjs update that is broadcast to all other clients and applied to their local `Y.Doc` in real time.
+4. On the server, `setPersistence` wires Postgres as the storage layer: when a room first opens, the saved Yjs binary is loaded into the in-memory doc; every update is debounced and flushed to the `Document.content` column; when the last client disconnects, a final flush runs.
+5. `CollaborationCursor` and the Yjs awareness protocol handle presence: each client broadcasts its cursor position and user info (name, colour); other clients render the cursor directly in the ProseMirror document.
 
-**Yjs** is the production CRDT implementation used by Notion, Linear, and others. Using it over hand-rolling OT means:
-- Correctness guaranteed (no missed edge cases in transform functions)
-- Offline support for free (Yjs queues updates, syncs state vectors on reconnect)
-- Presence/awareness for free (no custom WebSocket message protocol)
+### Offline Support
 
-**Horizontal scaling path (not implemented):** Add Redis pub/sub as the Yjs provider backend so multiple Node.js instances share document state. Each WebSocket connection subscribes to a document channel; updates fan out across servers.
+`y-indexeddb` creates a second persistence layer in the browser. Edits made while the WebSocket is down are written to IndexedDB immediately. On reconnect, Yjs performs a state vector exchange — the server sends only the updates the client missed, the client sends its queued offline edits. Merges are always conflict-free because Yjs is a CRDT.
 
-## Quick Start (Docker)
+### Authentication & Workspace Isolation
+
+- Registration hashes the password with bcrypt (12 rounds) and returns a signed JWT.
+- Every protected API route runs `requireAuth` middleware which verifies the JWT and attaches `req.user`.
+- Every database query for documents includes `ownerId: req.user.id` in the `where` clause. A user cannot read, modify, or delete another user's document — the response is always 404 (not 403, to avoid confirming existence).
+- WebSocket connections require a valid JWT or an `EDITABLE` share token. `READ_ONLY` share tokens are rejected at the WebSocket level.
+
+### Document Versioning
+
+The frontend snapshots the full Yjs binary state every 5 minutes and posts it to `POST /documents/:id/versions`. Each snapshot is stored as a `DocumentVersion` row. On restore, the chosen snapshot's binary is written back to `Document.content`, the in-memory Yjs room is evicted (`evictRoom`), and the frontend remounts the editor — so the next WebSocket connection loads the restored state cleanly from the database.
+
+---
+
+## Quick Start with Docker
+
+**Prerequisites:** Docker and Docker Compose installed.
 
 ```bash
-git clone <repo>
+git clone <repo-url>
 cd coll-notes
-docker-compose up
+
+# Copy the env template and review the values
+cp .env.example .env
+
+# Start all three containers (postgres, backend, frontend)
+docker compose up --build
 ```
 
-Open `http://localhost:5173`. Register, create a document, start writing.
+Open [http://localhost:5173](http://localhost:5173). Register an account and start writing.
 
-To test collaboration: open the app in two browser windows with different accounts, open the same document via a share link.
+**To test real-time collaboration:** open the app in two browser windows with different accounts. Share a document using the Share button (top right), open the link in the second window. Both cursors and edits will appear live.
+
+**Environment variables** (`.env` at project root):
+
+| Variable | Description | Default |
+|---|---|---|
+| `POSTGRES_USER` | PostgreSQL user | `postgres` |
+| `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` |
+| `POSTGRES_DB` | Database name | `collnotes` |
+| `DATABASE_URL` | Full connection string (must match above) | see `.env.example` |
+| `JWT_SECRET` | Secret for signing JWTs — **change in production** | `dev-secret-change-in-production` |
+| `JWT_EXPIRES_IN` | Token expiry | `7d` |
+| `FRONTEND_URL` | Used to construct share link URLs | `http://localhost:5173` |
+
+---
 
 ## Manual Setup
 
+Requires Node.js 22+ and PostgreSQL 17 running locally.
+
 **Backend:**
+
 ```bash
 cd backend
-cp .env.example .env   # edit DATABASE_URL if needed
+cp .env.example .env        # set DATABASE_URL to your local postgres
 npm install
-npx prisma migrate dev
-npm run dev
+./node_modules/.bin/prisma migrate deploy
+npm run dev                 # starts REST API on :3001 and WS server on :3002
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                 # starts Vite dev server on :5173
 ```
 
-Requires PostgreSQL running locally (see `.env.example` for connection string).
+The frontend proxies `/api` and `/collab` via Vite's dev proxy — no nginx needed locally.
+
+---
+
+## Running Tests
+
+Backend integration tests run against a separate `collnotes_test` database (derived automatically from `DATABASE_URL`). The test suite requires a running PostgreSQL instance.
+
+```bash
+cd backend
+npm test
+```
+
+The test setup:
+- Runs `prisma migrate deploy` on `collnotes_test` before the suite
+- Clears all tables in `beforeEach` so tests are fully isolated
+- `fileParallelism: false` prevents FK constraint races between test files
+
+Current coverage: **20 tests** across auth (register, login, validation) and documents (CRUD, ownership isolation, soft delete, restore, duplicate, content save, activity).
+
+---
+
+## Design Decisions
+
+### CRDT over OT for real-time sync
+
+The two main approaches to collaborative editing are Operational Transformation (OT) and CRDTs.
+
+**OT** (used by Google Docs, SharePoint): each operation is transformed against concurrent operations before being applied. Requires the server to coordinate every pair of concurrent edits — O(N²) transform complexity, and correctness depends on getting every transform function right for every operation type combination.
+
+**CRDT** (Conflict-free Replicated Data Type): operations are designed so that any two replicas converge to the same state regardless of the order updates are applied. No server coordination required for merging — the server is just a relay and persistence layer.
+
+**Chosen approach: Yjs CRDT.** Reasons:
+- Mathematical correctness guarantee — no edge cases in transform functions to miss
+- Offline support is a natural consequence, not an add-on (state vectors + delta sync)
+- Yjs awareness protocol gives presence/cursor sharing for free
+- Tiptap (the editor) has first-class Yjs integration via `@tiptap/extension-collaboration`
+- Used in production by Notion, Linear, and Figma
+
+**Tradeoff accepted:** Yjs document state grows over time as deleted content is retained as tombstones. This is negligible at note-taking scale. For a document with millions of edits, periodic state compaction would be needed.
+
+### Snapshot versioning over operation log
+
+Versions are stored as full Yjs binary snapshots, not an operation log. This means:
+- Restore is a single write (copy snapshot bytes back to `Document.content`) rather than replaying a potentially long operation chain
+- Storage cost is higher per version, but snapshots are only taken every 5 minutes
+- The tradeoff is coarser granularity (5-minute intervals) vs. character-level history
+
+### Atomic ownership enforcement
+
+All document mutations use Prisma's `updateMany` with both `id` and `ownerId` in the `where` clause rather than a separate existence check followed by an update. This prevents TOCTOU (time-of-check/time-of-use) races where a document could be transferred between a check and an update.
+
+### Single nginx entry point
+
+In Docker, the frontend nginx container proxies both `/api` (HTTP) and `/collab` (WebSocket upgrade) to the backend. This means the frontend only ever talks to one host — no CORS configuration, no mixed-content issues, and the WebSocket URL is derived from `window.location.host` rather than being hardcoded.
+
+---
 
 ## AI Tools Used
 
-**Claude Code (claude-sonnet-4-6)** was used throughout this project for:
-- Architecture design and tradeoff analysis (CRDT vs OT vs delta-based)
-- Generating boilerplate (Prisma schema, Express routes, React hooks)
-- Suggesting the Yjs + Tiptap pairing over a custom WebSocket protocol
+**Claude Code (claude-sonnet-4-6)** was used throughout this project.
 
-**Where AI was helpful:**
-- Quickly scaffolding the Prisma schema and service layer pattern
-- Explaining Yjs awareness API for presence indicators
-- Generating the Docker Compose configuration
+**Where it was genuinely useful:**
+- Scaffolding the Prisma schema, Express route structure, and React hook patterns — fast to generate, easy to review
+- Explaining the Yjs awareness API and `setPersistence` hook (y-websocket internals are sparsely documented)
+- Generating the Docker Compose configuration and nginx WebSocket proxy config
 
-**Where AI fell short / was corrected:**
-- Initial slash command implementation used a deprecated Tiptap extension API — replaced with a custom ProseMirror plugin approach
-- AI suggested `@tiptap/extension-slash-commands` which doesn't exist as a standalone package; implementation was written from scratch
-- WebSocket auth for share tokens required custom logic not covered by y-websocket defaults
+**Where it needed correction:**
+- Initial slash command implementation used a non-existent `@tiptap/extension-slash-commands` package — replaced with a custom ProseMirror plugin using `tippy.js` for positioning
+- Suggested putting `url = env("DATABASE_URL")` in `schema.prisma` which is Prisma 5 syntax; Prisma 7 requires the connection string in `prisma.config.ts` and the `PrismaPg` adapter at runtime
+- WebSocket authentication for share tokens required custom logic on top of y-websocket's defaults, which AI initially missed
+
+**Approach:** AI was used as a pair programmer for speed on boilerplate-heavy tasks. All architectural decisions, debugging of runtime failures, and integration of Prisma 7's breaking changes were done by hand.
+
+---
 
 ## What I'd Build Next
 
-1. **Redis pub/sub** — horizontal WebSocket scaling for multi-instance deployments
-2. **Operation-log versioning** — character-level history (Google Docs style) instead of 5-minute snapshots
-3. **Inline comments** — select text, start a comment thread, resolve comments
-4. **Workspace search** — full-text search across all documents using PostgreSQL `tsvector`
-5. **Document templates** — save a document as a reusable template
+1. **Redis pub/sub** — horizontal WebSocket scaling: multiple Node.js instances share document state via a Redis channel rather than an in-process `Map`
+2. **Character-level version history** — store the Yjs operation log rather than full snapshots, enabling Google Docs-style per-keystroke playback
+3. **Inline comments** — select text, anchor a comment thread, resolve/reopen comments; stored as Yjs marks to survive collaborative edits
+4. **Full-text search** — PostgreSQL `tsvector` index on document text content, extracted from Yjs state on save
+5. **Document templates** — save any document as a reusable template; new documents can be created from a template
