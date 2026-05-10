@@ -34,6 +34,9 @@ export function Editor({ documentId, readOnly = false }: Props) {
   const [ydoc] = useState(() => new Y.Doc())
   const [provider, setProvider] = useState<WebsocketProvider | null>(null)
 
+  // Destroy ydoc on unmount to prevent memory leak
+  useEffect(() => () => { ydoc.destroy() }, [ydoc])
+
   useEffect(() => {
     const token = getToken()
     const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? 'ws://localhost:3002'
@@ -76,7 +79,7 @@ export function Editor({ documentId, readOnly = false }: Props) {
     ],
     editable: !readOnly,
     onUpdate: debouncedSave,
-  }, [provider])
+  }, [provider, debouncedSave])
 
   useEffect(() => {
     versionTimerRef.current = setInterval(async () => {

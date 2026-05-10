@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import axios from 'axios'
+import { api } from '@/lib/api'
 import { Editor } from '@/components/editor/Editor'
 
 interface ShareData {
@@ -14,7 +14,7 @@ export function SharedDocumentPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    axios.get(`/api/share/${token}`)
+    api.get(`/share/${token}`)
       .then((res) => setData(res.data))
       .catch(() => setError('This link is invalid or has expired.'))
   }, [token])

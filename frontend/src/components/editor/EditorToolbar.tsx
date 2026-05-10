@@ -19,6 +19,8 @@ export function EditorToolbar({ editor }: Props) {
         className={`px-2 py-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-accent' : 'hover:bg-muted'}`}>H1</button>
       <button onClick={() => editor.chain().focus().setHeading({ level: 2 }).run()}
         className={`px-2 py-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-accent' : 'hover:bg-muted'}`}>H2</button>
+      <button onClick={() => editor.chain().focus().setHeading({ level: 3 }).run()}
+        className={`px-2 py-1 rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-accent' : 'hover:bg-muted'}`}>H3</button>
       <button onClick={() => editor.chain().focus().toggleBulletList().run()}
         className={`px-2 py-1 rounded ${editor.isActive('bulletList') ? 'bg-accent' : 'hover:bg-muted'}`}>• List</button>
       <button onClick={() => editor.chain().focus().toggleCodeBlock().run()}

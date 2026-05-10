@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { api } from '@/lib/api'
 
 interface Props {
@@ -11,6 +11,7 @@ export function ShareDialog({ documentId, onClose }: Props) {
   const [link, setLink] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   const generate = async () => {
     setLoading(true)
@@ -22,11 +23,12 @@ export function ShareDialog({ documentId, onClose }: Props) {
     }
   }
 
-  const copy = () => {
+  const copy = async () => {
     if (!link) return
-    navigator.clipboard.writeText(link)
+    await navigator.clipboard.writeText(link).catch(() => {})
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    clearTimeout(copyTimerRef.current)
+    copyTimerRef.current = setTimeout(() => setCopied(false), 2000)
   }
 
   return (
