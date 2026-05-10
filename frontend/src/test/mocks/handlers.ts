@@ -15,6 +15,7 @@ export const handlers = [
   http.patch('/api/documents/:id', ({ params }) =>
     HttpResponse.json({ id: params.id, title: 'Renamed', updatedAt: new Date().toISOString() })
   ),
+  http.delete('/api/documents/:id/permanent', () => HttpResponse.json({ ok: true })),
   http.delete('/api/documents/:id', () => HttpResponse.json({ ok: true })),
 
   // New handlers for versions, duplicate, and sharing

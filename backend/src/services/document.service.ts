@@ -56,6 +56,13 @@ export async function softDeleteDocument(id: string, ownerId: string) {
   if (result.count === 0) throw new AppError(404, 'Document not found')
 }
 
+export async function hardDeleteDocument(id: string, ownerId: string) {
+  const result = await prisma.document.deleteMany({
+    where: { id, ownerId, isDeleted: true },
+  })
+  if (result.count === 0) throw new AppError(404, 'Document not found in trash')
+}
+
 export async function restoreDocument(id: string, ownerId: string) {
   const result = await prisma.document.updateMany({
     where: { id, ownerId, isDeleted: true },

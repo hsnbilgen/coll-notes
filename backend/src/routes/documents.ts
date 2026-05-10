@@ -8,6 +8,7 @@ import {
   renameDocument,
   softDeleteDocument,
   restoreDocument,
+  hardDeleteDocument,
   saveDocumentContent,
   getDocumentActivity,
   duplicateDocument,
@@ -57,6 +58,13 @@ router.post('/:id/restore', async (req: AuthRequest, res, next) => {
   try {
     const doc = await restoreDocument(req.params.id as string, req.user!.id)
     res.json(doc)
+  } catch (err) { next(err) }
+})
+
+router.delete('/:id/permanent', async (req: AuthRequest, res, next) => {
+  try {
+    await hardDeleteDocument(req.params.id as string, req.user!.id)
+    res.json({ ok: true })
   } catch (err) { next(err) }
 })
 

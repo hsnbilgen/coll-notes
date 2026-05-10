@@ -92,6 +92,36 @@ describe('Document CRUD', () => {
     expect(first.body.title).toBe('Untitled')
     expect(second.body.title).toBe('Untitled-1')
   })
+
+  it('permanently deletes a trashed document', async () => {
+    const token = await registerAndGetToken()
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const id = create.body.id
+    await request(app).delete(`/api/documents/${id}`).set('Authorization', `Bearer ${token}`)
+    const del = await request(app).delete(`/api/documents/${id}/permanent`).set('Authorization', `Bearer ${token}`)
+    expect(del.status).toBe(200)
+    expect(del.body.ok).toBe(true)
+    const trash = await request(app).get('/api/documents/trash').set('Authorization', `Bearer ${token}`)
+    expect(trash.body).toHaveLength(0)
+  })
+
+  it('returns 404 permanently deleting a document that is not in trash', async () => {
+    const token = await registerAndGetToken()
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token}`)
+    const id = create.body.id
+    const res = await request(app).delete(`/api/documents/${id}/permanent`).set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(404)
+  })
+
+  it('cannot permanently delete another user document', async () => {
+    const token1 = await registerAndGetToken('permowner@example.com')
+    const token2 = await registerAndGetToken('permother@example.com')
+    const create = await request(app).post('/api/documents').set('Authorization', `Bearer ${token1}`)
+    const id = create.body.id
+    await request(app).delete(`/api/documents/${id}`).set('Authorization', `Bearer ${token1}`)
+    const res = await request(app).delete(`/api/documents/${id}/permanent`).set('Authorization', `Bearer ${token2}`)
+    expect(res.status).toBe(404)
+  })
 })
 
 describe('Document duplicate', () => {

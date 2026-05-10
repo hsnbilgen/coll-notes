@@ -58,6 +58,14 @@ export function useRestoreDocument() {
   })
 }
 
+export function useHardDeleteDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => api.delete(`/documents/${id}/permanent`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', 'trash'] }),
+  })
+}
+
 export function useDuplicateDocument() {
   const qc = useQueryClient()
   return useMutation({
