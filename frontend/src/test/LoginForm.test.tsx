@@ -3,6 +3,8 @@ import { screen, fireEvent, waitFor } from '@testing-library/dom'
 import { describe, it, expect } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
+import { http, HttpResponse } from 'msw'
+import { server } from './mocks/server'
 import { LoginForm } from '@/components/auth/LoginForm'
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -20,15 +22,18 @@ describe('LoginForm', () => {
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
   })
 
-  it('submits form with email and password', async () => {
+  it('shows loading state on submit', async () => {
+    // Use a delayed response so the pending/loading state is observable
+    server.use(
+      http.post('/api/auth/login', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        return HttpResponse.json({ token: 'fake-jwt', user: { id: '1', email: 'test@example.com', name: 'Test' } })
+      })
+    )
     render(<LoginForm />, { wrapper })
     fireEvent.change(screen.getByPlaceholderText('Email'), { target: { value: 'test@example.com' } })
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'password123' } })
-
-    const submitButton = screen.getByRole('button', { name: /sign in/i })
-    expect(submitButton).toBeInTheDocument()
-
-    fireEvent.click(submitButton)
-    // Just verify the form was submitted (mock API will be called)
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await waitFor(() => expect(screen.getByText(/signing in/i)).toBeInTheDocument())
   })
 })
