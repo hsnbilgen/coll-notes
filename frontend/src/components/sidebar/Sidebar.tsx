@@ -3,16 +3,20 @@ import { useCreateDocument } from '@/hooks/useDocuments'
 import { useLogout, useCurrentUser } from '@/hooks/useAuth'
 import { DocumentList } from './DocumentList'
 import { TrashList } from './TrashList'
+import { SharedWithMeList } from './SharedWithMeList'
 import { useFocus } from '@/context/FocusContext'
 import { cn } from '@/lib/utils'
 
 interface Props {
   activeId: string | null
+  activeShareToken: string | null
   onSelect: (id: string) => void
+  onSelectShared: (shareToken: string) => void
 }
 
-export function Sidebar({ activeId, onSelect }: Props) {
+export function Sidebar({ activeId, activeShareToken, onSelect, onSelectShared }: Props) {
   const [showTrash, setShowTrash] = useState(false)
+  const [showShared, setShowShared] = useState(true)
   const create = useCreateDocument()
   const logout = useLogout()
   const user = useCurrentUser()
@@ -44,6 +48,19 @@ export function Sidebar({ activeId, onSelect }: Props) {
       <div className="flex-1 overflow-y-auto p-2">
         <p className="text-xs text-muted-foreground uppercase px-1 mb-1">Documents</p>
         <DocumentList activeId={activeId} onSelect={onSelect} />
+
+        <button
+          onClick={() => setShowShared((v) => !v)}
+          className="text-xs text-muted-foreground uppercase px-1 mt-4 mb-1 w-full text-left hover:text-foreground"
+        >
+          {showShared ? '▾' : '▸'} Shared with me
+        </button>
+        {showShared && (
+          <SharedWithMeList
+            activeShareToken={activeShareToken}
+            onSelect={onSelectShared}
+          />
+        )}
 
         <button
           onClick={() => setShowTrash((v) => !v)}

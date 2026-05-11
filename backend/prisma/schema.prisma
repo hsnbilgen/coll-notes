@@ -14,6 +14,7 @@ model User {
   passwordHash String
   createdAt    DateTime   @default(now())
   documents    Document[]
+  savedShares  SavedShare[]
 }
 
 model Document {
@@ -51,10 +52,24 @@ model DocumentShare {
   createdAt  DateTime        @default(now())
   expiresAt  DateTime?
 
+  savedBy    SavedShare[]
+
   @@index([documentId])
 }
 
 enum SharePermission {
   READ_ONLY
   EDITABLE
+}
+
+model SavedShare {
+  id         String        @id @default(uuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareId    String
+  share      DocumentShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  savedAt    DateTime      @default(now())
+
+  @@unique([userId, shareId])
+  @@index([userId])
 }

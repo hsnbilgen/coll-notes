@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { requireAuth, AuthRequest } from '../middleware/auth'
-import { createShare, resolveShare } from '../services/share.service'
+import { createShare, resolveShare, saveShareForUser, getSavedSharesForUser } from '../services/share.service'
 import { SharePermission } from '@prisma/client'
 
 const router = Router()
@@ -27,6 +27,20 @@ router.get('/share/:token', async (req, res, next) => {
   try {
     const result = await resolveShare(req.params.token)
     res.json(result)
+  } catch (err) { next(err) }
+})
+
+router.post('/share/:token/save', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    await saveShareForUser(req.params.token as string, req.user!.id)
+    res.status(204).end()
+  } catch (err) { next(err) }
+})
+
+router.get('/shared-with-me', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const items = await getSavedSharesForUser(req.user!.id)
+    res.json(items)
   } catch (err) { next(err) }
 })
 

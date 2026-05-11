@@ -3,7 +3,7 @@ import request from 'supertest'
 import app from '../app'
 
 async function registerAndGetToken(email = 'share@example.com') {
-  const res = await request(app).post('/api/auth/register').send({
+  const res = await request(app).post('/api/v1/auth/register').send({
     email,
     password: 'password123',
     name: 'Share User',
@@ -17,13 +17,13 @@ describe('Document Sharing', () => {
 
     // Create a document first
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Create a share link
     const res = await request(app)
-      .post(`/api/documents/${documentId}/share`)
+      .post(`/api/v1/documents/${documentId}/share`)
       .set('Authorization', `Bearer ${token}`)
       .send({})
 
@@ -39,13 +39,13 @@ describe('Document Sharing', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Create an editable share link
     const res = await request(app)
-      .post(`/api/documents/${documentId}/share`)
+      .post(`/api/v1/documents/${documentId}/share`)
       .set('Authorization', `Bearer ${token}`)
       .send({ permission: 'EDITABLE' })
 
@@ -61,13 +61,13 @@ describe('Document Sharing', () => {
 
     // User 1 creates a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token1}`)
     const documentId = createRes.body.id
 
     // User 2 tries to share it
     const res = await request(app)
-      .post(`/api/documents/${documentId}/share`)
+      .post(`/api/v1/documents/${documentId}/share`)
       .set('Authorization', `Bearer ${token2}`)
       .send({})
 
@@ -77,7 +77,7 @@ describe('Document Sharing', () => {
   it('returns 401 without auth token', async () => {
     // Try to share without authorization
     const res = await request(app)
-      .post('/api/documents/some-id/share')
+      .post('/api/v1/documents/some-id/share')
       .send({})
 
     expect(res.status).toBe(401)
@@ -88,26 +88,26 @@ describe('Document Sharing', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Rename the document to something recognizable
     await request(app)
-      .patch(`/api/documents/${documentId}`)
+      .patch(`/api/v1/documents/${documentId}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ title: 'Shared Document' })
 
     // Create a share link
     const shareRes = await request(app)
-      .post(`/api/documents/${documentId}/share`)
+      .post(`/api/v1/documents/${documentId}/share`)
       .set('Authorization', `Bearer ${token}`)
       .send({ permission: 'READ_ONLY' })
     const shareToken = shareRes.body.token
 
     // Resolve the share token
     const res = await request(app)
-      .get(`/api/share/${shareToken}`)
+      .get(`/api/v1/share/${shareToken}`)
 
     expect(res.status).toBe(200)
     expect(res.body.document).toBeDefined()
@@ -118,7 +118,7 @@ describe('Document Sharing', () => {
 
   it('returns 404 for a random non-existent token string', async () => {
     const res = await request(app)
-      .get('/api/share/random-non-existent-token-12345')
+      .get('/api/v1/share/random-non-existent-token-12345')
 
     expect(res.status).toBe(404)
   })
