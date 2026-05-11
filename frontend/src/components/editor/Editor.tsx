@@ -6,6 +6,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import { Extension } from '@tiptap/core'
 import { useEffect, useRef, useCallback, useState } from 'react'
+import type { WebsocketProvider } from '@/types/y-websocket'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { EditorToolbar } from './EditorToolbar'
@@ -14,16 +15,13 @@ import { SlashCommands } from './SlashCommands'
 import { useFocus } from '@/context/FocusContext'
 import { cn } from '@/lib/utils'
 import * as Y from 'yjs'
-// @ts-ignore
-import { WebsocketProvider } from 'y-websocket'
-// @ts-ignore
+import { WebsocketProvider as WsProvider } from 'y-websocket'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { getToken } from '@/lib/auth'
 
 const USER_COLORS = ['#F44336', '#9C27B0', '#2196F3', '#4CAF50', '#FF9800', '#00BCD4']
 function randomColor() { return USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)] }
 
-// Press Mod+Enter to exit a code block and continue writing below
 const CodeBlockExit = Extension.create({
   name: 'codeBlockExit',
   addKeyboardShortcuts() {
@@ -39,52 +37,69 @@ const CodeBlockExit = Extension.create({
 interface Props {
   documentId: string
   readOnly?: boolean
+  shareToken?: string
+  guestName?: string
   onProviderReady?: (provider: WebsocketProvider) => void
 }
 
-export function Editor({ documentId, readOnly = false, onProviderReady }: Props) {
+export function Editor({ documentId, readOnly = false, shareToken, guestName, onProviderReady }: Props) {
   const user = useCurrentUser()
   const { isFocused } = useFocus()
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
-  const versionTimerRef = useRef<ReturnType<typeof setInterval>>()
-  // Stable color for this browser session — doesn't change on re-render
-  const userColor = useRef(randomColor())
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const versionTimerRef = useRef<ReturnType<typeof setInterval>>(undefined)
+  const [userColor] = useState(() => randomColor())
   const [ydoc] = useState(() => new Y.Doc())
   const [provider, setProvider] = useState<WebsocketProvider | null>(null)
+  const [syncState, setSyncState] = useState<'loading' | 'ready' | 'error'>('loading')
 
-  // Destroy ydoc on unmount to prevent memory leak
+  // If logged in, always use their email. Only fall back to guestName if no JWT.
+  const displayName = user?.email ?? guestName ?? 'Anonymous'
+  const authToken = shareToken ?? getToken() ?? ''
+
   useEffect(() => () => { ydoc.destroy() }, [ydoc])
 
   useEffect(() => {
-    const token = getToken()
     const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? `${wsProto}//${window.location.host}/collab`
-    // @ts-ignore
-    const wp = new WebsocketProvider(wsUrl, documentId, ydoc, {
-      params: { token: token || '', documentId },
-    })
-    // @ts-ignore
-    const persistence = new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc)
-    // @ts-ignore
-    wp.awareness.setLocalStateField('user', { name: user?.email || 'Anonymous', color: userColor.current })
-    setProvider(wp)
-    onProviderReady?.(wp)
+    const wp = new WsProvider(wsUrl, documentId, ydoc, {
+      params: { token: authToken, documentId },
+    }) as WebsocketProvider
+
+    // Skip IndexedDB for share sessions — stale empty cache causes blank-on-load for guests
+    const persistence = shareToken
+      ? null
+      : new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc)
+
+    setSyncState('loading') // eslint-disable-line react-hooks/set-state-in-effect
+    const onSynced = (isSynced: boolean) => { if (isSynced !== false) setSyncState('ready') } // eslint-disable-line react-hooks/set-state-in-effect
+    wp.on('synced', onSynced)
+    const onClose = () => setSyncState('error') // eslint-disable-line react-hooks/set-state-in-effect
+    wp.on('connection-close', onClose)
+
+    wp.awareness.setLocalStateField('user', { name: displayName, color: userColor })
+    // Syncing external WebSocket connection into React state — intentional setState in effect
+    setProvider(wp) // eslint-disable-line react-hooks/set-state-in-effect
+    if (onProviderReady) onProviderReady(wp)
 
     return () => {
-      // @ts-ignore
+      setProvider(null)
+      wp.off('synced', onSynced)
+      wp.off('connection-close', onClose)
       wp.disconnect()
-      // @ts-ignore
-      persistence.destroy()
+      persistence?.destroy()
     }
-  }, [documentId, user?.email, ydoc])
+  }, [documentId, authToken, shareToken, displayName, ydoc, userColor, onProviderReady])
+
+  const saveDebounceMs = Number(import.meta.env.VITE_SAVE_DEBOUNCE_MS) || 500
 
   const debouncedSave = useCallback(() => {
+    if (readOnly || shareToken) return
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       const state = Y.encodeStateAsUpdate(ydoc)
       await api.patch(`/documents/${documentId}/content`, { content: Array.from(state) }).catch(() => {})
-    }, 1500)
-  }, [documentId, ydoc])
+    }, saveDebounceMs)
+  }, [documentId, ydoc, readOnly, shareToken, saveDebounceMs])
 
   const editor = useEditor({
     extensions: [
@@ -92,7 +107,7 @@ export function Editor({ documentId, readOnly = false, onProviderReady }: Props)
       Collaboration.configure({ document: ydoc }),
       ...(provider ? [CollaborationCursor.configure({
         provider,
-        user: { name: user?.email || 'Anonymous', color: userColor.current },
+        user: { name: displayName, color: userColor },
       })] : []),
       Placeholder.configure({ placeholder: "Start writing, or type '/' for commands…" }),
       Underline,
@@ -125,7 +140,17 @@ export function Editor({ documentId, readOnly = false, onProviderReady }: Props)
           <PresenceAvatars provider={provider} />
         </div>
       )}
-      <div className={cn('flex-1 overflow-y-auto', isFocused && 'flex justify-center')}>
+      <div className={cn('flex-1 overflow-y-auto relative', isFocused && 'flex justify-center')}>
+        {shareToken && syncState === 'loading' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+            <span className="text-sm text-muted-foreground animate-pulse">Loading document…</span>
+          </div>
+        )}
+        {shareToken && syncState === 'error' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+            <span className="text-sm text-muted-foreground">Could not connect to document. The link may have expired.</span>
+          </div>
+        )}
         <EditorContent
           editor={editor}
           className={cn(

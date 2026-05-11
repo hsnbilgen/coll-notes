@@ -1,23 +1,38 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { Editor } from '@/components/editor/Editor'
+import { getToken } from '@/lib/auth'
 
 interface ShareData {
   document: { id: string; title: string }
   permission: 'READ_ONLY' | 'EDITABLE'
 }
 
+function guestName() {
+  const stored = sessionStorage.getItem('guest-name')
+  if (stored) return stored
+  const n = `Guest ${Math.floor(Math.random() * 9000) + 1000}`
+  sessionStorage.setItem('guest-name', n)
+  return n
+}
+
 export function SharedDocumentPage() {
   const { token } = useParams<{ token: string }>()
+  const navigate = useNavigate()
   const [data, setData] = useState<ShareData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [name] = useState(() => guestName())
 
   useEffect(() => {
+    if (getToken()) {
+      navigate(`/shared/${token}`, { replace: true })
+      return
+    }
     api.get(`/share/${token}`)
       .then((res) => setData(res.data))
       .catch(() => setError('This link is invalid or has expired.'))
-  }, [token])
+  }, [token, navigate])
 
   if (error) {
     return (
@@ -38,11 +53,14 @@ export function SharedDocumentPage() {
         <span className="text-xs text-muted-foreground px-2 py-0.5 rounded border">
           {data.permission === 'READ_ONLY' ? 'Read only' : 'Collaborative editing'}
         </span>
+        <span className="ml-auto text-xs text-muted-foreground">Viewing as {name}</span>
       </div>
       <div className="flex-1 overflow-hidden">
         <Editor
           documentId={data.document.id}
           readOnly={data.permission === 'READ_ONLY'}
+          shareToken={token}
+          guestName={name}
         />
       </div>
     </div>

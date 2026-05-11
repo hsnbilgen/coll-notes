@@ -13,8 +13,12 @@ async function authenticateConnection(req: IncomingMessage): Promise<boolean> {
     const token = url.searchParams.get('token')
     const documentId = url.searchParams.get('documentId')
 
-    if (!documentId || !token) return false
+    if (!documentId) return false
 
+    // No token — reject
+    if (!token) return false
+
+    // Try JWT owner auth first
     try {
       const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: string }
       const doc = await prisma.document.findFirst({
@@ -22,15 +26,19 @@ async function authenticateConnection(req: IncomingMessage): Promise<boolean> {
       })
       return !!doc
     } catch {
-      const share = await prisma.documentShare.findUnique({
-        where: { token },
-        include: { document: { select: { id: true, isDeleted: true } } },
-      })
-      if (!share || share.document.isDeleted) return false
-      if (share.document.id !== documentId) return false
-      if (share.expiresAt && share.expiresAt < new Date()) return false
-      return share.permission === 'EDITABLE'
+      // Fall through to share token check
     }
+
+    // Share token — allow both READ_ONLY and EDITABLE to connect
+    // READ_ONLY enforcement happens on the frontend (editor readOnly prop)
+    const share = await prisma.documentShare.findUnique({
+      where: { token },
+      include: { document: { select: { id: true, isDeleted: true } } },
+    })
+    if (!share || share.document.isDeleted) return false
+    if (share.document.id !== documentId) return false
+    if (share.expiresAt && share.expiresAt < new Date()) return false
+    return true
   } catch {
     return false
   }

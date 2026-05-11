@@ -11,9 +11,7 @@ const FocusContext = createContext<FocusContextValue>({
 })
 
 export function FocusProvider({ children }: { children: ReactNode }) {
-  const [isFocused, setIsFocused] = useState(() => {
-    return localStorage.getItem('focus-mode') === 'true'
-  })
+  const [isFocused, setIsFocused] = useState(false)
 
   const toggleFocus = useCallback(() => {
     setIsFocused((prev) => {
@@ -36,7 +34,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [isFocused])
+  }, [isFocused, toggleFocus])
 
   return (
     <FocusContext.Provider value={{ isFocused, toggleFocus }}>
@@ -45,6 +43,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFocus() {
   return useContext(FocusContext)
 }

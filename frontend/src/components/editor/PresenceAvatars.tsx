@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { WebsocketProvider } from '@/types/y-websocket'
 
 interface PresenceUser {
   name: string
@@ -7,7 +8,7 @@ interface PresenceUser {
 }
 
 interface Props {
-  provider: any | null
+  provider: WebsocketProvider | null
 }
 
 function initials(name: string) {
@@ -23,14 +24,17 @@ export function PresenceAvatars({ provider }: Props) {
     if (!provider) return
 
     const update = () => {
-      const states = Array.from(provider.awareness.getStates().entries()) as [number, any][]
+      const states = Array.from(provider.awareness.getStates().entries())
       const others = states
         .filter(([clientId]) => clientId !== provider.awareness.clientID)
-        .map(([clientId, state]) => ({
-          clientId,
-          name: state.user?.name || 'Anonymous',
-          color: state.user?.color || '#888',
-        }))
+        .map(([clientId, state]) => {
+          const s = state as Record<string, { name?: string; color?: string }>
+          return {
+            clientId,
+            name: s.user?.name || 'Anonymous',
+            color: s.user?.color || '#888',
+          }
+        })
       setUsers(others)
     }
 
@@ -63,10 +67,10 @@ export function PresenceAvatars({ provider }: Props) {
             >
               {initials(u.name)}
             </div>
-            {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-foreground text-background text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            {/* Tooltip — shown below the avatar since toolbar sits at top of page */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-foreground text-background text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-foreground" />
               {u.name}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
             </div>
           </div>
         ))}
