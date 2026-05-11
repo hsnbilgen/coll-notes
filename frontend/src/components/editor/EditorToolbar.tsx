@@ -69,6 +69,7 @@ export function EditorToolbar({ editor }: Props) {
       </ToolBtn>
 
       <ToolBtn
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onClick={() => (editor.chain().focus() as any).toggleUnderline().run()}
         active={editor.isActive('underline')}
         title="Underline (⌘U)"

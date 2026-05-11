@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRenameDocument, useDeleteDocument, useDuplicateDocument } from '@/hooks/useDocuments'
 import { cn } from '@/lib/utils'
 
@@ -15,10 +15,6 @@ export function DocumentItem({ id, title, isActive, onSelect }: Props) {
   const rename = useRenameDocument()
   const del = useDeleteDocument()
   const duplicate = useDuplicateDocument()
-
-  useEffect(() => {
-    if (!editing) setDraft(title)
-  }, [title, editing])
 
   const commitRename = () => {
     if (draft.trim() && draft !== title) rename.mutate({ id, title: draft.trim() })

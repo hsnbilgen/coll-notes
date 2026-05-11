@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
+import type { WebsocketProvider } from '@/types/y-websocket'
 import { Editor } from '@/components/editor/Editor'
 import { VersionHistoryPanel } from '@/components/versions/VersionHistoryPanel'
 import { ShareDialog } from '@/components/sharing/ShareDialog'
@@ -15,13 +16,13 @@ export function DocumentPage({ documentId }: Props) {
   const [showVersions, setShowVersions] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [showActivity, setShowActivity] = useState(false)
-  const [provider, setProvider] = useState<any>(null)
+  const [provider, setProvider] = useState<WebsocketProvider | null>(null)
   const [editorKey, setEditorKey] = useState(0)
   const { data: docs } = useDocuments()
   const doc = docs?.find((d) => d.id === documentId)
   const { isFocused, toggleFocus } = useFocus()
 
-  const handleProviderReady = useCallback((p: any) => setProvider(p), [])
+  const handleProviderReady = useCallback((p: WebsocketProvider) => setProvider(p), [])
   const handleRestored = useCallback(() => setEditorKey((k) => k + 1), [])
 
   return (

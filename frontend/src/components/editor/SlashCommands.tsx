@@ -77,6 +77,7 @@ interface CommandListProps {
   onCommandExecuted: () => void
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const CommandList = forwardRef<{ onKeyDown: (props: { event: KeyboardEvent }) => boolean }, CommandListProps>(
   (props, ref) => {
     const [selected, setSelected] = useState(0)
@@ -157,10 +158,11 @@ export const SlashCommands = Extension.create({
               destroyPopup()
               return true
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (component?.ref as any)?.onKeyDown?.({ event }) ?? false
           },
         },
-        view(editorView) {
+        view(_editorView) {
           return {
             update(view) {
               const { selection, doc } = view.state
