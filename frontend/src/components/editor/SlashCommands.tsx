@@ -32,6 +32,11 @@ const COMMANDS: CommandItem[] = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
+    title: 'Numbered List',
+    description: 'Create a numbered list',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
+  },
+  {
     title: 'Code Block',
     description: 'Capture a code snippet',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
@@ -184,7 +189,10 @@ export const SlashCommands = Extension.create({
                   editor: tiptapEditor,
                 })
                 popup = tippy('body', {
-                  getReferenceClientRect: () => view.coordsAtPos(from) as DOMRect,
+                  getReferenceClientRect: () => {
+                    const coords = view.coordsAtPos(from)
+                    return DOMRect.fromRect({ x: coords.left, y: coords.top, width: 0, height: coords.bottom - coords.top })
+                  },
                   appendTo: () => document.body,
                   content: component.element,
                   showOnCreate: true,
@@ -194,6 +202,12 @@ export const SlashCommands = Extension.create({
                 })
               } else {
                 component.updateProps({ query, editor: tiptapEditor, range, onCommandExecuted: destroyPopup })
+                popup?.[0]?.setProps({
+                  getReferenceClientRect: () => {
+                    const coords = view.coordsAtPos(from)
+                    return DOMRect.fromRect({ x: coords.left, y: coords.top, width: 0, height: coords.bottom - coords.top })
+                  },
+                })
                 popup?.[0]?.show()
               }
             },

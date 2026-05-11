@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { WebsocketProvider } from '@/types/y-websocket'
 
+type ActivityType = 'created' | 'renamed' | 'edited' | 'version_saved' | 'version_restored' | 'shared' | 'collaborator_joined'
+
 interface ActivityEvent {
-  type: 'created' | 'edited'
+  type: ActivityType
   timestamp: string
   label: string
 }
@@ -28,6 +30,18 @@ function timeAgo(date: string) {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
+}
+
+function dotColor(type: ActivityType) {
+  switch (type) {
+    case 'created': return 'bg-green-500'
+    case 'renamed': return 'bg-yellow-500'
+    case 'version_saved': return 'bg-indigo-500'
+    case 'version_restored': return 'bg-orange-500'
+    case 'shared': return 'bg-purple-500'
+    case 'collaborator_joined': return 'bg-pink-500'
+    default: return 'bg-blue-500'
+  }
 }
 
 export function ActivityFeed({ documentId, provider, onClose }: Props) {
@@ -88,9 +102,7 @@ export function ActivityFeed({ documentId, provider, onClose }: Props) {
           <div className="flex flex-col gap-3">
             {activity.map((event, i) => (
               <div key={i} className="flex items-start gap-2">
-                <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  event.type === 'created' ? 'bg-green-500' : 'bg-blue-500'
-                }`} />
+                <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor(event.type)}`} />
                 <div>
                   <p className="text-sm">{event.label}</p>
                   <p className="text-xs text-muted-foreground">{timeAgo(event.timestamp)}</p>

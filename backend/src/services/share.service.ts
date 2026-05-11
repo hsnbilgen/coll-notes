@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 import { SharePermission } from '@prisma/client'
+import { logActivity } from './activity.service'
 
 export async function createShare(
   documentId: string,
@@ -15,6 +16,8 @@ export async function createShare(
     data: { documentId, permission, expiresAt },
     select: { token: true, permission: true },
   })
+
+  logActivity(documentId, 'SHARED', 'Share link created').catch(() => {})
 
   const url = `${process.env.FRONTEND_URL}/share/${share.token}`
   return { token: share.token, permission: share.permission, url }

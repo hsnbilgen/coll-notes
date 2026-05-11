@@ -104,7 +104,7 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
     extensions: [
       StarterKit.configure({ history: false }),
       Collaboration.configure({ document: ydoc }),
-      ...(provider ? [CollaborationCursor.configure({
+      ...(!readOnly && provider ? [CollaborationCursor.configure({
         provider,
         user: { name: displayName, color: userColor },
       })] : []),

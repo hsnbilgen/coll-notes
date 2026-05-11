@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
+import { logActivity } from './activity.service'
 
 export async function listDocuments(ownerId: string) {
   return prisma.document.findMany({
@@ -33,10 +34,14 @@ export async function createDocument(ownerId: string) {
     title = `Untitled-${next}`
   }
 
-  return prisma.document.create({
+  const document = await prisma.document.create({
     data: { ownerId, title },
     select: { id: true, title: true, createdAt: true, updatedAt: true },
   })
+
+  logActivity(document.id, 'CREATED', 'Document created').catch(() => {})
+
+  return document
 }
 
 export async function renameDocument(id: string, ownerId: string, title: string) {
@@ -45,6 +50,9 @@ export async function renameDocument(id: string, ownerId: string, title: string)
     data: { title },
   })
   if (result.count === 0) throw new AppError(404, 'Document not found')
+
+  logActivity(id, 'RENAMED', 'Document renamed').catch(() => {})
+
   return prisma.document.findUnique({ where: { id } })
 }
 
@@ -69,6 +77,9 @@ export async function restoreDocument(id: string, ownerId: string) {
     data: { isDeleted: false, deletedAt: null },
   })
   if (result.count === 0) throw new AppError(404, 'Document not found')
+
+  logActivity(id, 'CREATED', 'Document restored from trash').catch(() => {})
+
   return prisma.document.findUnique({ where: { id } })
 }
 
@@ -79,7 +90,7 @@ export async function duplicateDocument(id: string, ownerId: string) {
   if (!source) throw new AppError(404, 'Document not found')
 
   const copyTitle = `Copy of ${source.title}`
-  return prisma.document.create({
+  const newDocument = await prisma.document.create({
     data: {
       ownerId,
       title: copyTitle,
@@ -87,6 +98,10 @@ export async function duplicateDocument(id: string, ownerId: string) {
     },
     select: { id: true, title: true, createdAt: true, updatedAt: true },
   })
+
+  logActivity(newDocument.id, 'CREATED', 'Document created').catch(() => {})
+
+  return newDocument
 }
 
 export async function saveDocumentContent(id: string, ownerId: string, content: Buffer) {
@@ -95,26 +110,27 @@ export async function saveDocumentContent(id: string, ownerId: string, content: 
     data: { content: new Uint8Array(content) },
   })
   if (result.count === 0) throw new AppError(404, 'Document not found')
+
+  logActivity(id, 'EDITED', 'Document edited').catch(() => {})
 }
 
 export async function getDocumentActivity(id: string, ownerId: string) {
   const doc = await prisma.document.findFirst({
     where: { id, ownerId, isDeleted: false },
-    select: { id: true, title: true, createdAt: true, updatedAt: true },
+    select: { id: true },
   })
   if (!doc) throw new AppError(404, 'Document not found')
 
-  const versions = await prisma.documentVersion.findMany({
+  const activities = await prisma.documentActivity.findMany({
     where: { documentId: id },
-    select: { id: true, createdAt: true },
+    select: { type: true, label: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
-    take: 20,
+    take: 50,
   })
 
-  const activity = [
-    { type: 'created', timestamp: doc.createdAt, label: 'Document created' },
-    ...versions.map((v) => ({ type: 'edited', timestamp: v.createdAt, label: 'Document saved' })),
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
-  return activity
+  return activities.map((a) => ({
+    type: a.type.toLowerCase(),
+    timestamp: a.createdAt,
+    label: a.label,
+  }))
 }

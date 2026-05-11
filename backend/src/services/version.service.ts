@@ -1,11 +1,16 @@
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
+import { logActivity } from './activity.service'
 
 export async function createVersion(documentId: string, content: Buffer) {
-  return prisma.documentVersion.create({
+  const version = await prisma.documentVersion.create({
     data: { documentId, content: new Uint8Array(content) },
     select: { id: true, documentId: true, createdAt: true },
   })
+
+  logActivity(documentId, 'VERSION_SAVED', 'Version saved').catch(() => {})
+
+  return version
 }
 
 export async function listVersions(documentId: string, ownerId: string) {
@@ -34,6 +39,8 @@ export async function restoreVersion(documentId: string, versionId: string, owne
   await prisma.documentVersion.create({
     data: { documentId, content: new Uint8Array(version.content) },
   })
+
+  logActivity(documentId, 'VERSION_RESTORED', 'Version restored').catch(() => {})
 
   return { id: documentId, restoredFromVersion: versionId }
 }

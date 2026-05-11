@@ -48,7 +48,7 @@ A real-time collaborative note-taking application. Multiple users can edit the s
 - Each user's documents are fully isolated: every database query includes `ownerId` in the `where` clause
 - JWT authentication (bcrypt password hashing, 7-day token expiry) — `requireAuth` middleware on all protected routes
 - A user cannot read, modify, or delete another user's document — the response is always 404 (not 403, to avoid confirming existence)
-- WebSocket connections are authenticated: JWT owner check or valid `EDITABLE` share token required to join a room
+- WebSocket connections are authenticated: JWT owner check or valid share token (READ_ONLY or EDITABLE) required to join a room — read-only enforcement is applied at the editor level
 
 ---
 
@@ -64,7 +64,7 @@ Implemented with Yjs, a production-grade CRDT library. The approach and tradeoff
 Share button in the editor toolbar generates a shareable link with selectable permission (`READ_ONLY` or `EDITABLE`). Share tokens are UUIDs stored in `DocumentShare`. Read-only tokens can view the document but are rejected at the WebSocket level (cannot edit). Editable tokens grant full collaborative access without requiring an account.
 
 **Bonus 4 — Real-time activity feed**
-Activity panel per document shows a chronological timeline: document created, renamed, content saved, version restored, shared. Events are stored as `DocumentActivity` rows and returned via `GET /documents/:id/activity`.
+Activity panel per document shows a chronological timeline of events stored in the `DocumentActivity` table. Events written on every mutation: document created, renamed, edited (content save), version saved, version restored, and share link created. The feed is queried via `GET /api/v1/documents/:id/activity` and auto-refreshes every 15 seconds. Each event type is colour-coded in the UI.
 
 ---
 
@@ -151,7 +151,7 @@ Activity panel per document shows a chronological timeline: document created, re
    ┌─────────────────▼───────────────────┐
    │          PostgreSQL (port 5432)      │
    │  User, Document, DocumentVersion,    │
-   │  DocumentShare, DocumentActivity     │
+   │  DocumentShare, SavedShare           │
    └─────────────────────────────────────┘
 ```
 
