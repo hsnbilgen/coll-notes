@@ -73,3 +73,17 @@ export function useDuplicateDocument() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
   })
 }
+
+export interface SharedWithMeItem {
+  shareToken: string
+  permission: 'READ_ONLY' | 'EDITABLE'
+  savedAt: string
+  document: { id: string; title: string; updatedAt: string }
+}
+
+export function useSharedWithMe() {
+  return useQuery<SharedWithMeItem[]>({
+    queryKey: ['shared-with-me'],
+    queryFn: async () => (await api.get('/shared-with-me')).data,
+  })
+}
