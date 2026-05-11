@@ -29,7 +29,7 @@ export function WorkspacePage() {
         {activeDocId ? (
           <DocumentPage documentId={activeDocId} />
         ) : activeShareToken ? (
-          <SharedDocView shareToken={activeShareToken} />
+          <SharedDocView key={activeShareToken} shareToken={activeShareToken} />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             Select a document or create a new one

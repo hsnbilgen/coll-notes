@@ -20,16 +20,17 @@ export function SharedDocView({ shareToken }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setData(null)
-    setError(null)
+    let cancelled = false
     api.get(`/share/${shareToken}`)
       .then((res) => {
+        if (cancelled) return
         setData(res.data)
         api.post(`/share/${shareToken}/save`)
           .then(() => qc.invalidateQueries({ queryKey: ['shared-with-me'] }))
           .catch(() => {})
       })
-      .catch(() => setError('This link is invalid or has expired.'))
+      .catch(() => { if (!cancelled) setError('This link is invalid or has expired.') })
+    return () => { cancelled = true }
   }, [shareToken, qc])
 
   if (error) {

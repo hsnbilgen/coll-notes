@@ -71,14 +71,13 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
       : new IndexeddbPersistence(`coll-notes-${documentId}`, ydoc)
 
     setSyncState('loading') // eslint-disable-line react-hooks/set-state-in-effect
-    const onSynced = (isSynced: boolean) => { if (isSynced !== false) setSyncState('ready') } // eslint-disable-line react-hooks/set-state-in-effect
+    const onSynced = (isSynced: boolean) => { if (isSynced !== false) setSyncState('ready') }
     wp.on('synced', onSynced)
-    const onClose = () => setSyncState('error') // eslint-disable-line react-hooks/set-state-in-effect
+    const onClose = () => setSyncState('error')
     wp.on('connection-close', onClose)
 
     wp.awareness.setLocalStateField('user', { name: displayName, color: userColor })
-    // Syncing external WebSocket connection into React state — intentional setState in effect
-    setProvider(wp) // eslint-disable-line react-hooks/set-state-in-effect
+    setProvider(wp)
     if (onProviderReady) onProviderReady(wp)
 
     return () => {
