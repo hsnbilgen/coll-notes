@@ -3,7 +3,7 @@ import request from 'supertest'
 import app from '../app'
 
 async function registerAndGetToken(email = 'version@example.com') {
-  const res = await request(app).post('/api/auth/register').send({
+  const res = await request(app).post('/api/v1/auth/register').send({
     email,
     password: 'password123',
     name: 'Version User',
@@ -17,13 +17,13 @@ describe('Version Management', () => {
 
     // Create a document first
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Save a version
     const res = await request(app)
-      .post(`/api/documents/${documentId}/versions`)
+      .post(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token}`)
       .send({ content: [1, 2, 3, 4, 5] })
 
@@ -38,13 +38,13 @@ describe('Version Management', () => {
 
     // User 1 creates a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token1}`)
     const documentId = createRes.body.id
 
     // User 2 tries to save a version
     const res = await request(app)
-      .post(`/api/documents/${documentId}/versions`)
+      .post(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token2}`)
       .send({ content: [1, 2, 3, 4, 5] })
 
@@ -56,13 +56,13 @@ describe('Version Management', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // List versions (should be empty)
     const res = await request(app)
-      .get(`/api/documents/${documentId}/versions`)
+      .get(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)
@@ -74,19 +74,19 @@ describe('Version Management', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Save a version
     await request(app)
-      .post(`/api/documents/${documentId}/versions`)
+      .post(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token}`)
       .send({ content: [1, 2, 3, 4, 5] })
 
     // List versions (should have 1)
     const res = await request(app)
-      .get(`/api/documents/${documentId}/versions`)
+      .get(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)
@@ -101,13 +101,13 @@ describe('Version Management', () => {
 
     // User 1 creates a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token1}`)
     const documentId = createRes.body.id
 
     // User 2 tries to list versions
     const res = await request(app)
-      .get(`/api/documents/${documentId}/versions`)
+      .get(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token2}`)
 
     expect(res.status).toBe(404)
@@ -118,20 +118,20 @@ describe('Version Management', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Save a version
     const versionRes = await request(app)
-      .post(`/api/documents/${documentId}/versions`)
+      .post(`/api/v1/documents/${documentId}/versions`)
       .set('Authorization', `Bearer ${token}`)
       .send({ content: [1, 2, 3, 4, 5] })
     const versionId = versionRes.body.id
 
     // Restore the version
     const res = await request(app)
-      .post(`/api/documents/${documentId}/versions/${versionId}/restore`)
+      .post(`/api/v1/documents/${documentId}/versions/${versionId}/restore`)
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(200)
@@ -144,13 +144,13 @@ describe('Version Management', () => {
 
     // Create a document
     const createRes = await request(app)
-      .post('/api/documents')
+      .post('/api/v1/documents')
       .set('Authorization', `Bearer ${token}`)
     const documentId = createRes.body.id
 
     // Try to restore non-existent version
     const res = await request(app)
-      .post(`/api/documents/${documentId}/versions/non-existent-id/restore`)
+      .post(`/api/v1/documents/${documentId}/versions/non-existent-id/restore`)
       .set('Authorization', `Bearer ${token}`)
 
     expect(res.status).toBe(404)

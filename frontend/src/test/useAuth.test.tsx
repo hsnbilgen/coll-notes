@@ -66,7 +66,7 @@ describe('useRegister', () => {
 
     // Add register handler for each test
     server.use(
-      http.post('/api/auth/register', () =>
+      http.post('/api/v1/auth/register', () =>
         HttpResponse.json({
           token: 'reg-token',
           user: { id: 'u1', email: 'new@example.com', name: 'New', createdAt: new Date().toISOString() }

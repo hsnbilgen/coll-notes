@@ -25,7 +25,7 @@ describe('LoginForm', () => {
   it('shows loading state on submit', async () => {
     // Use a delayed response so the pending/loading state is observable
     server.use(
-      http.post('/api/auth/login', async () => {
+      http.post('/api/v1/auth/login', async () => {
         await new Promise((resolve) => setTimeout(resolve, 100))
         return HttpResponse.json({ token: 'fake-jwt', user: { id: '1', email: 'test@example.com', name: 'Test' } })
       })
@@ -39,7 +39,7 @@ describe('LoginForm', () => {
 
   it('shows error message on login failure', async () => {
     server.use(
-      http.post('/api/auth/login', () =>
+      http.post('/api/v1/auth/login', () =>
         HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
       )
     )

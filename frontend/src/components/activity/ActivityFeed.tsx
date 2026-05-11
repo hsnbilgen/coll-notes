@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { WebsocketProvider } from '@/types/y-websocket'
 
 interface ActivityEvent {
   type: 'created' | 'edited'
@@ -15,7 +16,7 @@ interface AwarenessUser {
 
 interface Props {
   documentId: string
-  provider: any | null
+  provider: WebsocketProvider | null
   onClose: () => void
 }
 
@@ -43,8 +44,9 @@ export function ActivityFeed({ documentId, provider, onClose }: Props) {
 
     const update = () => {
       const states: AwarenessUser[] = []
-      provider.awareness.getStates().forEach((state: any) => {
-        if (state.user?.name) states.push(state.user)
+      provider.awareness.getStates().forEach((state) => {
+        const s = state as Record<string, { name?: string; color?: string }>
+        if (s.user?.name) states.push(s.user as AwarenessUser)
       })
       setActiveUsers(states)
     }

@@ -65,7 +65,7 @@ describe('DocumentItem', () => {
 
     // Override the duplicate handler to track requests
     server.use(
-      http.post('/api/documents/:id/duplicate', ({ params }) => {
+      http.post('/api/v1/documents/:id/duplicate', ({ params }) => {
         duplicateRequestMade = true
         expect(params.id).toBe('doc-1')
         return HttpResponse.json({

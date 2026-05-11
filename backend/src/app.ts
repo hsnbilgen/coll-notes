@@ -11,10 +11,13 @@ const app = express()
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
 app.use(express.json())
 
-app.use('/api/auth', authRoutes)
-app.use('/api/documents', documentRoutes)
-app.use('/api/documents', versionRoutes)
-app.use('/api', sharingRoutes)
+const v1 = express.Router()
+v1.use('/auth', authRoutes)
+v1.use('/documents', documentRoutes)
+v1.use('/documents', versionRoutes)
+v1.use('/', sharingRoutes)
+
+app.use('/api/v1', v1)
 
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
