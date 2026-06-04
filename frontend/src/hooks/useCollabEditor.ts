@@ -18,7 +18,7 @@ export function useCollabEditor(documentId: string, userName: string) {
   useEffect(() => {
     const ydoc = new Y.Doc()
     const token = getToken()
-    const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? 'ws://localhost:3002'
+    const wsUrl = import.meta.env.VITE_COLLAB_WS_URL ?? 'ws://localhost:3020'
     const provider = new WsProvider(wsUrl, documentId, ydoc, {
       params: { token: token || '', documentId },
     }) as WebsocketProvider

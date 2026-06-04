@@ -5,9 +5,11 @@ RUN npm install --prefer-offline
 COPY . .
 ARG VITE_SAVE_DEBOUNCE_MS=500
 ENV VITE_SAVE_DEBOUNCE_MS=${VITE_SAVE_DEBOUNCE_MS}
+ARG VITE_COLLAB_WS_URL
+ENV VITE_COLLAB_WS_URL=${VITE_COLLAB_WS_URL}
 RUN npm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 3001

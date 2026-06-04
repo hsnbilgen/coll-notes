@@ -6,25 +6,47 @@ import * as Y from 'yjs'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { setupWSConnection, setPersistence, docs } = require('y-websocket/bin/utils')
 import { prisma } from '../lib/prisma'
+import { log } from '../lib/logger'
 
-async function authenticateConnection(req: IncomingMessage): Promise<boolean> {
+type AuthResult =
+  | { ok: true; documentId: string; identity: string; via: 'jwt' | 'share' }
+  | { ok: false; reason: string; documentId?: string }
+
+// Best-effort real client IP from the upgrade request. Behind nginx/Traefik,
+// the real IP arrives in X-Forwarded-For (first hop). Fall back to the
+// socket peer if no header is set.
+function clientIp(req: IncomingMessage): string {
+  const xff = req.headers['x-forwarded-for']
+  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0].trim()
+  if (Array.isArray(xff) && xff.length > 0) return xff[0].split(',')[0].trim()
+  return req.socket.remoteAddress || '?'
+}
+
+async function authenticateConnection(req: IncomingMessage): Promise<AuthResult> {
   try {
     const url = new URL(req.url!, `http://localhost`)
     const token = url.searchParams.get('token')
     const documentId = url.searchParams.get('documentId')
 
-    if (!documentId) return false
-
-    // No token — reject
-    if (!token) return false
+    if (!documentId) return { ok: false, reason: 'no_document_id' }
+    if (!token) return { ok: false, reason: 'no_token', documentId }
 
     // Try JWT owner auth first
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: string }
+      const payload = jwt.verify(token, process.env.JWT_SECRET!) as {
+        id: string
+        email?: string
+      }
       const doc = await prisma.document.findFirst({
         where: { id: documentId, ownerId: payload.id, isDeleted: false },
       })
-      return !!doc
+      if (!doc) return { ok: false, reason: 'doc_not_owned', documentId }
+      return {
+        ok: true,
+        documentId,
+        identity: payload.email ?? payload.id,
+        via: 'jwt',
+      }
     } catch {
       // Fall through to share token check
     }
@@ -35,12 +57,23 @@ async function authenticateConnection(req: IncomingMessage): Promise<boolean> {
       where: { token },
       include: { document: { select: { id: true, isDeleted: true } } },
     })
-    if (!share || share.document.isDeleted) return false
-    if (share.document.id !== documentId) return false
-    if (share.expiresAt && share.expiresAt < new Date()) return false
-    return true
+    if (!share || share.document.isDeleted) {
+      return { ok: false, reason: 'share_invalid', documentId }
+    }
+    if (share.document.id !== documentId) {
+      return { ok: false, reason: 'share_doc_mismatch', documentId }
+    }
+    if (share.expiresAt && share.expiresAt < new Date()) {
+      return { ok: false, reason: 'share_expired', documentId }
+    }
+    return {
+      ok: true,
+      documentId,
+      identity: `share:${share.permission.toLowerCase()}`,
+      via: 'share',
+    }
   } catch {
-    return false
+    return { ok: false, reason: 'auth_exception' }
   }
 }
 
@@ -87,11 +120,19 @@ export function setupWebSocketServer(port: number) {
   const wss = new WebSocketServer({ port })
 
   wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
-    const authorized = await authenticateConnection(req)
-    if (!authorized) {
+    const ip = clientIp(req)
+    const result = await authenticateConnection(req)
+    if (!result.ok) {
+      log.ws('connect_denied', { ip, reason: result.reason, docId: result.documentId })
       ws.close(4001, 'Unauthorized')
       return
     }
+    log.ws('connect_ok', {
+      ip,
+      docId: result.documentId,
+      identity: result.identity,
+      via: result.via,
+    })
     setupWSConnection(ws as any, req)
   })
 

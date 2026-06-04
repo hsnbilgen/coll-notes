@@ -8,6 +8,11 @@ import sharingRoutes from './routes/sharing'
 
 const app = express()
 
+// Trust the first proxy hop (nginx in the frontend container, or Traefik).
+// Required so req.ip returns the real client IP from X-Forwarded-For
+// instead of the internal docker network IP of the reverse proxy.
+app.set('trust proxy', 1)
+
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
 app.use(express.json())
 

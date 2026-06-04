@@ -1,0 +1,21 @@
+# Local-development overrides — auto-loaded by `docker compose up` when this
+# file sits next to docker-compose.yml. Dokploy invokes compose with an
+# explicit `-f docker-compose.yml`, so this file is NOT applied in production.
+#
+# Adds host-port mappings so you can curl http://localhost:3010, open the
+# nginx-served frontend at http://localhost:5173, and connect a local psql to
+# Postgres at localhost:5432 — without exposing any of those publicly in prod.
+
+services:
+  postgres:
+    ports:
+      - '5432:5432'
+
+  backend:
+    ports:
+      - '${PORT:-3010}:${PORT:-3010}'
+      - '${WS_PORT:-3020}:${WS_PORT:-3020}'
+
+  frontend:
+    ports:
+      - '5173:3001'
