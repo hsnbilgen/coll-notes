@@ -1,5 +1,14 @@
 name: coll-notes
 
+# Production / Dokploy compose file.
+# No host-port mappings — services are only reachable via the internal docker
+# network. Dokploy's Traefik talks to the `frontend` container on its exposed
+# port 80 and handles TLS + domain routing externally.
+#
+# For local development, `docker-compose.override.yml` is auto-loaded and adds
+# back host port mappings (3001, 3002, 5173). That file is .gitignored from
+# the Dokploy deploy via .dockerignore / not picked up by `docker compose -f`.
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -8,15 +17,29 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - '5432:5432'
+    # No `ports:` — backend reaches it on the compose network as `postgres:5432`.
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Small-instance Postgres tuning (defaults target much larger boxes)
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=30
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 512M
+        reservations:
+          memory: 256M
     restart: unless-stopped
 
   backend:
@@ -32,18 +55,34 @@ services:
       PORT: ${PORT:-3001}
       WS_PORT: ${WS_PORT:-3002}
       FRONTEND_URL: ${FRONTEND_URL}
-    ports:
-      - '${PORT:-3001}:${PORT:-3001}'
-      - '${WS_PORT:-3002}:${WS_PORT:-3002}'
+      # Cap V8 heap so Node never tries to grow past the container limit.
+      # 320MB heap inside a 384MB container leaves room for native/Prisma/libuv.
+      NODE_OPTIONS: --max-old-space-size=320
+      UV_THREADPOOL_SIZE: '2'
+    # `expose:` makes ports reachable only on the internal docker network —
+    # NOT published to the host. The frontend's nginx proxies to these.
+    expose:
+      - '${PORT:-3001}'
+      - '${WS_PORT:-3002}'
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:${PORT:-3001}/health || exit 1']
-      interval: 5s
+      interval: 15s
       timeout: 5s
       retries: 10
       start_period: 30s
+    deploy:
+      # Single replica only — y-websocket holds room state in process memory.
+      # Multiple replicas would silently fork documents. See INTERVIEW_NOTES.md.
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 384M
+        reservations:
+          memory: 192M
     restart: unless-stopped
 
   frontend:
@@ -52,11 +91,21 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_SAVE_DEBOUNCE_MS: ${VITE_SAVE_DEBOUNCE_MS:-500}
-    ports:
-      - '5173:80'
+        VITE_COLLAB_WS_URL: ${VITE_COLLAB_WS_URL}
+    # nginx listens on 80 inside the container. Dokploy's Traefik routes the
+    # public domain to this port via the internal network — no host mapping needed.
+    expose:
+      - '80'
     depends_on:
       backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
+        reservations:
+          memory: 32M
     restart: unless-stopped
 
 volumes:
