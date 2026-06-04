@@ -6,7 +6,7 @@ name: coll-notes
 # port 80 and handles TLS + domain routing externally.
 #
 # For local development, `docker-compose.override.yml` is auto-loaded and adds
-# back host port mappings (3001, 3002, 5173). That file is .gitignored from
+# back host port mappings (3010, 3020, 5173). That file is .gitignored from
 # the Dokploy deploy via .dockerignore / not picked up by `docker compose -f`.
 
 services:
@@ -52,8 +52,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3001}
-      WS_PORT: ${WS_PORT:-3002}
+      PORT: ${PORT:-3010}
+      WS_PORT: ${WS_PORT:-3020}
       FRONTEND_URL: ${FRONTEND_URL}
       # Cap V8 heap so Node never tries to grow past the container limit.
       # 320MB heap inside a 384MB container leaves room for native/Prisma/libuv.
@@ -62,13 +62,13 @@ services:
     # `expose:` makes ports reachable only on the internal docker network —
     # NOT published to the host. The frontend's nginx proxies to these.
     expose:
-      - '${PORT:-3001}'
-      - '${WS_PORT:-3002}'
+      - '${PORT:-3010}'
+      - '${WS_PORT:-3020}'
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:${PORT:-3001}/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:${PORT:-3010}/health || exit 1']
       interval: 15s
       timeout: 5s
       retries: 10
@@ -92,10 +92,12 @@ services:
       args:
         VITE_SAVE_DEBOUNCE_MS: ${VITE_SAVE_DEBOUNCE_MS:-500}
         VITE_COLLAB_WS_URL: ${VITE_COLLAB_WS_URL}
-    # nginx listens on 80 inside the container. Dokploy's Traefik routes the
+    # nginx listens on 3001 inside the container. Dokploy's Traefik routes the
     # public domain to this port via the internal network — no host mapping needed.
+    # (Internal port choice; safe to be the same number as the backend's old
+    # external port since each container has its own isolated network namespace.)
     expose:
-      - '80'
+      - '3001'
     depends_on:
       backend:
         condition: service_healthy

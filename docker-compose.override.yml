@@ -2,8 +2,8 @@
 # file sits next to docker-compose.yml. Dokploy invokes compose with an
 # explicit `-f docker-compose.yml`, so this file is NOT applied in production.
 #
-# Adds host-port mappings so you can curl http://localhost:3001, open the
-# Vite-built frontend at http://localhost:5173, and connect a local psql to
+# Adds host-port mappings so you can curl http://localhost:3010, open the
+# nginx-served frontend at http://localhost:5173, and connect a local psql to
 # Postgres at localhost:5432 — without exposing any of those publicly in prod.
 
 services:
@@ -13,9 +13,9 @@ services:
 
   backend:
     ports:
-      - '${PORT:-3001}:${PORT:-3001}'
-      - '${WS_PORT:-3002}:${WS_PORT:-3002}'
+      - '${PORT:-3010}:${PORT:-3010}'
+      - '${WS_PORT:-3020}:${WS_PORT:-3020}'
 
   frontend:
     ports:
-      - '5173:80'
+      - '5173:3001'
