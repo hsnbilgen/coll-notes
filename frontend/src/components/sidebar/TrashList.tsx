@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { RotateCcw, Trash2, X } from 'lucide-react'
 import { useTrashDocuments, useRestoreDocument, useHardDeleteDocument } from '@/hooks/useDocuments'
+
+const iconBtn = 'flex h-6 w-6 items-center justify-center rounded hover:bg-background'
 
 export function TrashList() {
   const { data: docs } = useTrashDocuments()
@@ -7,50 +10,36 @@ export function TrashList() {
   const hardDelete = useHardDeleteDocument()
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
-  if (!docs?.length) return <p className="px-3 py-2 text-sm text-muted-foreground">Trash is empty</p>
+  if (!docs?.length) return <p className="px-3 py-2 text-xs text-muted-foreground">Trash is empty</p>
 
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-px">
       {docs.map((doc) => (
-        <div key={doc.id} className="group flex items-center justify-between px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded">
-          <span className="truncate flex-1">{doc.title || 'Untitled'}</span>
-          <div className="hidden group-hover:flex items-center gap-1 ml-2 shrink-0">
-            <button
-              onClick={() => restore.mutate(doc.id)}
-              title="Restore"
-              className="text-xs hover:text-foreground px-1.5 py-0.5 rounded hover:bg-accent"
-            >
-              Restore
-            </button>
-            {confirmId === doc.id ? (
-              <>
-                <button
-                  onClick={() => { hardDelete.mutate(doc.id); setConfirmId(null) }}
-                  title="Confirm permanent delete"
-                  className="text-xs text-destructive hover:text-destructive px-1.5 py-0.5 rounded hover:bg-destructive/10 font-medium"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setConfirmId(null)}
-                  title="Cancel"
-                  className="text-xs hover:text-foreground px-1 py-0.5 rounded hover:bg-accent"
-                >
-                  ✕
-                </button>
-              </>
-            ) : (
+        <div key={doc.id} className="group flex h-8 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent/60">
+          <span className="flex-1 truncate line-through decoration-muted-foreground/40">{doc.title || 'Untitled'}</span>
+          {confirmId === doc.id ? (
+            <div className="flex shrink-0 items-center gap-0.5 animate-fade-in">
               <button
-                onClick={() => setConfirmId(doc.id)}
-                title="Delete forever"
-                className="text-xs hover:text-destructive px-1.5 py-0.5 rounded hover:bg-destructive/10"
+                onClick={() => { hardDelete.mutate(doc.id); setConfirmId(null) }}
+                title="Confirm permanent delete"
+                className="rounded bg-destructive px-2 py-0.5 text-xs font-medium text-destructive-foreground hover:opacity-90"
               >
-                <svg width="11" height="11" viewBox="0 0 15 15" fill="none">
-                  <path d="M5.5 1.5h4M1.5 4h12M6 7v4M9 7v4M2.5 4l1 9h8l1-9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                Delete
               </button>
-            )}
-          </div>
+              <button onClick={() => setConfirmId(null)} title="Cancel" className={iconBtn}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+              <button onClick={() => restore.mutate(doc.id)} title="Restore" className={`${iconBtn} hover:text-foreground`}>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => setConfirmId(doc.id)} title="Delete forever" className={`${iconBtn} hover:text-destructive`}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

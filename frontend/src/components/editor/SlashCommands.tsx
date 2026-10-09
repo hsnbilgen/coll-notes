@@ -3,8 +3,10 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import tippy from 'tippy.js'
 import { forwardRef, useImperativeHandle, useState } from 'react'
+import { Heading1, Heading2, Heading3, List, ListOrdered, SquareCode, Quote, Minus, Users, Scale, type LucideIcon } from 'lucide-react'
 
 interface CommandItem {
+  icon: LucideIcon
   title: string
   description: string
   command: (props: { editor: TiptapEditor; range: { from: number; to: number } }) => void
@@ -12,36 +14,55 @@ interface CommandItem {
 
 const COMMANDS: CommandItem[] = [
   {
+    icon: Heading1,
     title: 'Heading 1',
     description: 'Large section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run(),
   },
   {
+    icon: Heading2,
     title: 'Heading 2',
     description: 'Medium section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run(),
   },
   {
+    icon: Heading3,
     title: 'Heading 3',
     description: 'Small section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run(),
   },
   {
+    icon: List,
     title: 'Bullet List',
     description: 'Create a simple bullet list',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
+    icon: ListOrdered,
     title: 'Numbered List',
     description: 'Create a numbered list',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
+    icon: SquareCode,
     title: 'Code Block',
     description: 'Capture a code snippet',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
+    icon: Quote,
+    title: 'Quote',
+    description: 'Highlight a passage',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
+  },
+  {
+    icon: Minus,
+    title: 'Divider',
+    description: 'Visually separate sections',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+  },
+  {
+    icon: Users,
     title: 'Meeting Note',
     description: 'Template for meeting notes',
     command: ({ editor, range }) =>
@@ -58,6 +79,7 @@ const COMMANDS: CommandItem[] = [
         .run(),
   },
   {
+    icon: Scale,
     title: 'Decision Record',
     description: 'Document an architectural decision',
     command: ({ editor, range }) =>
@@ -116,18 +138,24 @@ const CommandList = forwardRef<{ onKeyDown: (props: { event: KeyboardEvent }) =>
     if (!filtered.length) return null
 
     return (
-      <div className="bg-background border rounded-lg shadow-xl p-1 min-w-52 max-h-72 overflow-y-auto">
-        <p className="text-xs text-muted-foreground px-2 py-1 font-medium uppercase tracking-wide">Blocks</p>
+      <div className="w-72 max-h-80 overflow-y-auto rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-2xl shadow-black/10 animate-pop-in scrollbar-thin">
+        <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Insert block</p>
         {filtered.map((item, i) => (
           <button
             key={item.title}
             onClick={() => execute(item)}
-            className={`flex flex-col w-full text-left px-3 py-2 rounded text-sm ${
-              i === selected ? 'bg-accent' : 'hover:bg-muted'
+            onMouseEnter={() => setSelected(i)}
+            className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm ${
+              i === selected ? 'bg-accent' : ''
             }`}
           >
-            <span className="font-medium">{item.title}</span>
-            <span className="text-xs text-muted-foreground">{item.description}</span>
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-card ${i === selected ? 'text-brand' : 'text-muted-foreground'}`}>
+              <item.icon className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium">{item.title}</span>
+              <span className="block truncate text-xs text-muted-foreground">{item.description}</span>
+            </span>
           </button>
         ))}
       </div>

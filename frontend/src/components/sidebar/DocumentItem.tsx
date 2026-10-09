@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Copy, FileText, Pencil, Trash2 } from 'lucide-react'
 import { useRenameDocument, useDeleteDocument, useDuplicateDocument } from '@/hooks/useDocuments'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +9,8 @@ interface Props {
   isActive: boolean
   onSelect: (id: string) => void
 }
+
+const actionBtn = 'flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-background hover:text-foreground'
 
 export function DocumentItem({ id, title, isActive, onSelect }: Props) {
   const [editing, setEditing] = useState(false)
@@ -24,52 +27,38 @@ export function DocumentItem({ id, title, isActive, onSelect }: Props) {
   return (
     <div
       className={cn(
-        'group flex items-center justify-between px-3 py-1.5 rounded cursor-pointer text-sm',
-        isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+        'group relative flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors',
+        isActive ? 'bg-accent text-accent-foreground font-medium' : 'text-foreground/80 hover:bg-accent/60 hover:text-foreground'
       )}
       onClick={() => onSelect(id)}
     >
+      {isActive && <span className="absolute -left-2 top-1.5 bottom-1.5 w-0.5 rounded-full bg-brand" />}
+      <FileText className={cn('h-4 w-4 shrink-0', isActive ? 'text-brand' : 'text-muted-foreground')} />
       {editing ? (
         <input
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitRename}
-          onKeyDown={(e) => e.key === 'Enter' && commitRename()}
-          className="flex-1 bg-transparent outline-none"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitRename()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          className="min-w-0 flex-1 rounded bg-card px-1 outline-none ring-2 ring-brand/30"
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
         <span className="flex-1 truncate">{title || 'Untitled'}</span>
       )}
-      <div className="hidden group-hover:flex items-center gap-0.5 ml-2 shrink-0">
-        <button
-          onClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(title) }}
-          title="Rename"
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted"
-        >
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
-            <path d="M11.2 1.5a1.8 1.8 0 0 1 2.3 2.8L4.5 13.3H1.5v-3L11.2 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+      <div className="ml-1 hidden shrink-0 items-center group-hover:flex">
+        <button onClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(title) }} title="Rename" className={actionBtn}>
+          <Pencil className="h-3.5 w-3.5" />
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); duplicate.mutate(id) }}
-          title="Duplicate"
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted"
-        >
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
-            <rect x="1.5" y="4.5" width="9" height="9" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M4.5 4.5V3a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 13.5 3v6a1.5 1.5 0 0 1-1.5 1.5H10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
+        <button onClick={(e) => { e.stopPropagation(); duplicate.mutate(id) }} title="Duplicate" className={actionBtn}>
+          <Copy className="h-3.5 w-3.5" />
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); del.mutate(id) }}
-          title="Move to trash"
-          className="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted"
-        >
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
-            <path d="M5.5 1.5h4M1.5 4h12M6 7v4M9 7v4M2.5 4l1 9h8l1-9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <button onClick={(e) => { e.stopPropagation(); del.mutate(id) }} title="Move to trash" className={cn(actionBtn, 'hover:text-destructive')}>
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

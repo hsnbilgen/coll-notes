@@ -4,7 +4,8 @@ import { Editor } from '@/components/editor/Editor'
 import { VersionHistoryPanel } from '@/components/versions/VersionHistoryPanel'
 import { ShareDialog } from '@/components/sharing/ShareDialog'
 import { ActivityFeed } from '@/components/activity/ActivityFeed'
-import { useDocuments } from '@/hooks/useDocuments'
+import { useDocuments, useRenameDocument } from '@/hooks/useDocuments'
+import { Activity, History, Share2, Minimize2 } from 'lucide-react'
 import { useFocus } from '@/context/FocusContext'
 import { cn } from '@/lib/utils'
 
@@ -26,43 +27,42 @@ export function DocumentPage({ documentId }: Props) {
   const handleRestored = useCallback(() => setEditorKey((k) => k + 1), [])
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div className="flex flex-col flex-1 min-w-0">
-        <div
+        <header
           className={cn(
-            'flex items-center justify-between px-6 py-3 border-b transition-all duration-200',
+            'flex h-14 shrink-0 items-center justify-between gap-4 border-b px-4 sm:px-6',
             isFocused && 'hidden'
           )}
         >
-          <h1 className="font-semibold truncate">{doc?.title || 'Untitled'}</h1>
-          <div className="flex gap-2">
+          <TitleInput key={documentId} id={documentId} title={doc?.title ?? ''} />
+          <div className="flex shrink-0 items-center gap-1">
             <button
               onClick={() => { setShowActivity((v) => !v); setShowVersions(false) }}
-              className={cn('text-sm px-3 py-1.5 rounded border hover:bg-accent', showActivity && 'bg-accent')}
+              title="Activity"
+              className={cn('btn-ghost h-8 px-2.5', showActivity && 'bg-accent text-foreground')}
             >
-              Activity
+              <Activity className="h-4 w-4" /> <span className="hidden md:inline">Activity</span>
             </button>
             <button
               onClick={() => { setShowVersions((v) => !v); setShowActivity(false) }}
-              className={cn('text-sm px-3 py-1.5 rounded border hover:bg-accent', showVersions && 'bg-accent')}
+              title="Version history"
+              className={cn('btn-ghost h-8 px-2.5', showVersions && 'bg-accent text-foreground')}
             >
-              History
+              <History className="h-4 w-4" /> <span className="hidden md:inline">History</span>
             </button>
-            <button
-              onClick={() => setShowShare(true)}
-              className="text-sm px-3 py-1.5 rounded bg-primary text-primary-foreground hover:opacity-90"
-            >
-              Share
+            <button onClick={() => setShowShare(true)} className="btn-brand ml-1 h-8 px-3.5">
+              <Share2 className="h-3.5 w-3.5" /> Share
             </button>
           </div>
-        </div>
+        </header>
 
         {isFocused && (
           <button
             onClick={toggleFocus}
-            className="absolute top-3 right-3 z-10 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border bg-background/80 backdrop-blur-sm"
+            className="btn-outline absolute right-4 top-4 z-10 h-8 px-3 text-xs text-muted-foreground shadow-sm animate-fade-in"
           >
-            Exit focus · esc
+            <Minimize2 className="h-3.5 w-3.5" /> Exit focus <span className="kbd">esc</span>
           </button>
         )}
 
@@ -89,5 +89,39 @@ export function DocumentPage({ documentId }: Props) {
         <ShareDialog documentId={documentId} onClose={() => setShowShare(false)} />
       )}
     </div>
+  )
+}
+
+
+function TitleInput({ id, title }: { id: string; title: string }) {
+  const [draft, setDraft] = useState(title)
+  const [lastTitle, setLastTitle] = useState(title)
+  const rename = useRenameDocument()
+
+  // Pick up renames made elsewhere (sidebar) while not mid-edit
+  if (title !== lastTitle) {
+    setLastTitle(title)
+    setDraft(title)
+  }
+
+  const commit = () => {
+    const next = draft.trim()
+    if (next && next !== title) rename.mutate({ id, title: next })
+    else setDraft(title)
+  }
+
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') { setDraft(title); e.currentTarget.blur() }
+      }}
+      placeholder="Untitled"
+      aria-label="Document title"
+      className="min-w-0 flex-1 truncate rounded-md bg-transparent px-2 py-1 -ml-2 font-serif text-xl tracking-tight outline-none transition hover:bg-accent/60 focus:bg-accent/60"
+    />
   )
 }

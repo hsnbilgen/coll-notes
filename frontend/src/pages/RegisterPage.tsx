@@ -1,9 +1,10 @@
 import { RegisterForm } from '@/components/auth/RegisterForm'
+import { AuthLayout } from '@/components/auth/AuthLayout'
 
 export function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <AuthLayout title="Create your workspace" subtitle="Free, private, and ready in a few seconds.">
       <RegisterForm />
-    </div>
+    </AuthLayout>
   )
 }

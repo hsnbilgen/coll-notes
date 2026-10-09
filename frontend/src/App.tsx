@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { FocusProvider } from '@/context/FocusContext'
+import { ThemeProvider } from '@/context/ThemeContext'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { WorkspacePage } from '@/pages/WorkspacePage'
@@ -31,18 +32,20 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <FocusProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/share/:token" element={<SharedDocumentPage />} />
-            <Route path="/" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
-            <Route path="/documents/:id" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
-            <Route path="/shared/:token" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
-          </Routes>
-        </BrowserRouter>
-      </FocusProvider>
+      <ThemeProvider>
+        <FocusProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/share/:token" element={<SharedDocumentPage />} />
+              <Route path="/" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
+              <Route path="/documents/:id" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
+              <Route path="/shared/:token" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
+            </Routes>
+          </BrowserRouter>
+        </FocusProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

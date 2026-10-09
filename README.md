@@ -1,12 +1,12 @@
 # coll-notes
 
-A real-time collaborative note-taking application. Multiple users can edit the same document simultaneously — edits merge without conflicts, cursors appear live, and full version history is always one click away.
+A real-time collaborative note-taking app I built as a side project to go deep on CRDTs, offline-first sync and editor UX. Multiple users can edit the same document simultaneously — edits merge without conflicts, cursors appear live, and full version history is always one click away.
 
 ---
 
 ## Table of Contents
 
-1. [Feature Coverage](#feature-coverage)
+1. [Features](#features)
 2. [Tech Stack](#tech-stack)
 3. [How It Works](#how-it-works)
 4. [Quick Start with Docker](#quick-start-with-docker)
@@ -15,75 +15,41 @@ A real-time collaborative note-taking application. Multiple users can edit the s
 7. [CI / GitHub Actions](#ci--github-actions)
 8. [Design Decisions](#design-decisions)
 9. [AI Tools Used](#ai-tools-used)
-10. [Known Timing Behaviours](#known-timing-behaviours)
-11. [What I'd Build Next](#what-id-build-next)
+10. [Known Trade-offs](#known-trade-offs)
+11. [Roadmap](#roadmap)
 
 ---
 
-## Feature Coverage
+## Features
 
-### Required Features — all delivered
+**Writing**
+- Block editor (Tiptap + ProseMirror): headings, lists, quotes, code blocks, dividers
+- Slash menu (`/`) with icons and ready-made templates (meeting note, decision record), built as a custom ProseMirror plugin
+- Inline title editing, focus mode (⌘⇧F), light and dark themes
+- Live save status in the toolbar: *Saving → Saved*, or *Offline* when the connection drops
 
-**1. Document Management**
-- Create, rename, and delete documents from the sidebar
-- Documents are listed in a collapsible sidebar with hover actions (rename, duplicate, delete)
-- Soft delete with trash bin — deleted documents move to trash and can be restored or permanently removed
+**Collaboration**
+- Real-time co-editing over Yjs CRDTs: concurrent edits always converge, nothing is overwritten
+- Named, colored live cursors plus a presence stack showing who is in the note
+- Share links with **view** or **edit** permission; guests can join without an account
+- "Shared with me" section for notes others have shared with you
 
-**2. Rich Text Editor**
-- Block-based editor (Tiptap 2 + ProseMirror) supporting headings (H1–H3), paragraphs, bullet lists, ordered lists, and code blocks
-- Slash commands (`/heading`, `/bullet`, `/code`, `/quote`, etc.) via a custom ProseMirror plugin with a tippy.js popup — no third-party slash-command package used
-- Auto-save with 500ms debounce: on every edit the Yjs binary state is flushed to `PATCH /documents/:id/content` — matched to the backend WebSocket persistence interval so both paths write at the same rate
+**Safety net**
+- Offline-first: edits persist to IndexedDB and sync automatically on reconnect
+- Version history with automatic snapshots every 5 minutes, ⌘S for a manual snapshot, one-click restore
+- Activity timeline per note (created, renamed, edited, versions, shares)
+- Soft delete with a trash bin, restore, and two-step permanent delete
 
-**3. Real-time Collaboration**
-- Dedicated y-websocket server (port 3002) manages document rooms — each document is a separate WebSocket room identified by its ID
-- Conflict-free sync via Yjs CRDT: concurrent edits from multiple users never overwrite each other, they always converge to the same state
-- Live presence indicators: colored named cursors rendered directly in the editor (each user gets a stable random color per session), plus an avatar stack in the toolbar showing who's currently in the document
+**Workspace**
+- Per-user isolation enforced on every query; other users' notes return 404, never 403
+- ⌘K search across your notes, duplicate, rename, recent notes on the home screen
+- JWT auth, authenticated WebSocket rooms, read-only enforced for view links
 
-**4. Document Versioning**
-- Yjs binary state is snapshotted every 5 minutes and on manual save (⌘S / Ctrl+S) and posted to `POST /documents/:id/versions`
-- Version history panel in the editor toolbar: lists all saved snapshots with timestamps
-- Restore any version with one click — the snapshot bytes are written back to `Document.content`, the in-memory room is evicted, and the editor remounts cleanly
-
-**5. User-Specific Workspaces**
-- Each user's documents are fully isolated: every database query includes `ownerId` in the `where` clause
-- JWT authentication (bcrypt password hashing, 7-day token expiry) — `requireAuth` middleware on all protected routes
-- A user cannot read, modify, or delete another user's document — the response is always 404 (not 403, to avoid confirming existence)
-- WebSocket connections are authenticated: JWT owner check or valid share token (READ_ONLY or EDITABLE) required to join a room — read-only enforcement is applied at the editor level
-
----
-
-### Bonus Features — all four delivered
-
-**Bonus 1 — Conflict-free real-time sync (CRDT)**
-Implemented with Yjs, a production-grade CRDT library. The approach and tradeoffs are documented in the [Design Decisions](#design-decisions) section below.
-
-**Bonus 2 — Offline support**
-`y-indexeddb` persists the Yjs document in the browser's IndexedDB. Edits made while disconnected are queued locally. On reconnect, Yjs performs a state vector exchange — the server sends only missed updates, the client sends its offline edits. Merges are always conflict-free.
-
-**Bonus 3 — Document sharing**
-Share button in the editor toolbar generates a shareable link with selectable permission (`READ_ONLY` or `EDITABLE`). Share tokens are UUIDs stored in `DocumentShare`. Read-only tokens can view the document but are rejected at the WebSocket level (cannot edit). Editable tokens grant full collaborative access without requiring an account.
-
-**Bonus 4 — Real-time activity feed**
-Activity panel per document shows a chronological timeline of events stored in the `DocumentActivity` table. Events written on every mutation: document created, renamed, edited (content save), version saved, version restored, and share link created. The feed is queried via `GET /api/v1/documents/:id/activity` and auto-refreshes every 15 seconds. Each event type is colour-coded in the UI.
-
----
-
-### Extra Features — delivered beyond scope
-
-| Feature | Description |
-|---|---|
-| **API versioning** | All REST endpoints served under `/api/v1/` — the version prefix is a single `baseURL` constant on the frontend, making a future `/api/v2/` migration a one-line change |
-| **Proper page URLs** | Every view has a meaningful, bookmarkable URL: `/documents/:id` for owned documents, `/shared/:token` for shared documents inside the workspace, `/share/:token` for the public guest view — browser back/forward and page refresh all work correctly |
-| **ESLint + strict TypeScript** | Full ESLint setup (react-hooks, react-refresh, typescript-eslint) with zero errors across all components — enforces hooks rules, removes dead code, and replaces all `@ts-ignore` directives with proper type declarations |
-| **Permanent delete** | Trashed documents can be hard-deleted forever from the trash bin, with a two-step confirmation to prevent accidents |
-| **Document duplication** | Copy any document (with full content) via the sidebar context menu — duplicate gets a "Copy of …" prefixed title |
-| **Extended toolbar** | Underline, blockquote, horizontal rule, and clear formatting buttons in addition to the standard set |
-| **Focus mode** | ⌘⇧F hides the sidebar and centers content in a distraction-free 680px column — state persisted to localStorage |
-| **Auto-incrementing titles** | Creating a document when "Untitled" already exists produces "Untitled-1", "Untitled-2", etc. |
-| **Full test suite** | 52 tests across 9 suites (backend integration + frontend component/hook) — see [Running Tests](#running-tests) |
-| **GitHub Actions CI** | Three-job pipeline: backend tests, frontend tests, Docker build — runs on every push and PR to `main` |
-| **Healthcheck-ordered startup** | Docker Compose uses `condition: service_healthy` so nginx only starts after the backend passes its `/health` check — no race-condition errors on cold start |
-| **Production-ready Docker setup** | Multi-stage builds, all secrets from `.env`, `restart: unless-stopped`, single nginx entry point proxying both REST and WebSocket |
+**Engineering**
+- REST under `/api/v1`, bookmarkable URLs for every view
+- Strict TypeScript + ESLint (hooks rules as a correctness gate)
+- Backend integration tests + frontend component/hook tests, GitHub Actions CI
+- Docker Compose with healthcheck-ordered startup behind a single nginx entry point
 
 ---
 
@@ -352,7 +318,7 @@ Docker Compose uses `condition: service_healthy` for all service dependencies. P
 
 ---
 
-## AI Tools Used
+## Built With AI Assistance
 
 **Claude Code (claude-sonnet-4-6)** was used as a pair programmer throughout the project.
 
@@ -373,9 +339,9 @@ Docker Compose uses `condition: service_healthy` for all service dependencies. P
 
 ---
 
-## Known Timing Behaviours
+## Known Trade-offs
 
-These are deliberate design decisions, not bugs. They arise from the debounced, dual-path save architecture and are documented here so they are not misread as defects during review.
+These are deliberate design decisions that come from the debounced, dual-path save architecture.
 
 ### Up to 500ms before content is persisted to the database
 
@@ -404,7 +370,7 @@ The sidebar's "Shared with me" list is populated by `GET /shared-with-me`, which
 
 ---
 
-## What I'd Build Next
+## Roadmap
 
 1. **Redis pub/sub for horizontal scaling** — multiple Node.js instances share document state via a Redis channel rather than an in-process `Map`, enabling the WebSocket server to scale out
 2. **Character-level version history** — store the Yjs operation log rather than full snapshots, enabling per-keystroke playback (like Google Docs version history)

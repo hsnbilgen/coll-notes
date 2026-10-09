@@ -12,7 +12,9 @@ import { api } from '@/lib/api'
 import { EditorToolbar } from './EditorToolbar'
 import { PresenceAvatars } from './PresenceAvatars'
 import { SlashCommands } from './SlashCommands'
+import { StatusIndicator } from './StatusIndicator'
 import { useFocus } from '@/context/FocusContext'
+import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import * as Y from 'yjs'
 import { WebsocketProvider as WsProvider } from 'y-websocket'
@@ -51,6 +53,8 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
   const [ydoc] = useState(() => new Y.Doc())
   const [provider, setProvider] = useState<WebsocketProvider | null>(null)
   const [syncState, setSyncState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [connected, setConnected] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'version'>('idle')
 
   // If logged in, always use their email. Only fall back to guestName if no JWT.
   const displayName = user?.email ?? guestName ?? 'Anonymous'
@@ -75,6 +79,8 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
     wp.on('synced', onSynced)
     const onClose = () => setSyncState('error')
     wp.on('connection-close', onClose)
+    const onStatus = ({ status }: { status: string }) => setConnected(status === 'connected')
+    wp.on('status', onStatus)
 
     wp.awareness.setLocalStateField('user', { name: displayName, color: userColor })
     setProvider(wp)
@@ -84,6 +90,7 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
       setProvider(null)
       wp.off('synced', onSynced)
       wp.off('connection-close', onClose)
+      wp.off('status', onStatus)
       wp.disconnect()
       persistence?.destroy()
     }
@@ -94,9 +101,11 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
   const debouncedSave = useCallback(() => {
     if (readOnly || shareToken) return
     clearTimeout(saveTimerRef.current)
+    setSaveStatus('saving')
     saveTimerRef.current = setTimeout(async () => {
       const state = Y.encodeStateAsUpdate(ydoc)
       await api.patch(`/documents/${documentId}/content`, { content: Array.from(state) }).catch(() => {})
+      setSaveStatus('saved')
     }, saveDebounceMs)
   }, [documentId, ydoc, readOnly, shareToken, saveDebounceMs])
 
@@ -117,44 +126,65 @@ export function Editor({ documentId, readOnly = false, shareToken, guestName, on
     onUpdate: debouncedSave,
   }, [provider, debouncedSave])
 
+  const qc = useQueryClient()
+  const saveVersion = useCallback(async (manual: boolean) => {
+    const state = Y.encodeStateAsUpdate(ydoc)
+    try {
+      await api.post(`/documents/${documentId}/versions`, { content: Array.from(state) })
+      qc.invalidateQueries({ queryKey: ['versions', documentId] })
+      if (manual) setSaveStatus('version')
+    } catch { /* retried on the next interval */ }
+  }, [documentId, ydoc, qc])
+
+  // ⌘S / Ctrl+S snapshots a version (owners only)
   useEffect(() => {
-    versionTimerRef.current = setInterval(async () => {
-      const state = Y.encodeStateAsUpdate(ydoc)
-      await api.post(`/documents/${documentId}/versions`, {
-        content: Array.from(state),
-      }).catch(() => {})
-    }, 5 * 60 * 1000)
+    if (readOnly || shareToken) return
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        saveVersion(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [readOnly, shareToken, saveVersion])
+
+  useEffect(() => {
+    versionTimerRef.current = setInterval(() => saveVersion(false), 5 * 60 * 1000)
 
     return () => {
       clearInterval(versionTimerRef.current)
       clearTimeout(saveTimerRef.current)
     }
-  }, [documentId, ydoc])
+  }, [saveVersion])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {!readOnly && !isFocused && (
-        <div className="flex items-center border-b">
+        <div className="flex items-center gap-2 border-b bg-background/80 px-3 backdrop-blur">
           <EditorToolbar editor={editor} />
+          <StatusIndicator connected={connected} saveStatus={shareToken ? 'idle' : saveStatus} />
           <PresenceAvatars provider={provider} />
         </div>
       )}
-      <div className={cn('flex-1 overflow-y-auto relative', isFocused && 'flex justify-center')}>
+      <div className="scrollbar-thin relative flex-1 overflow-y-auto">
         {shareToken && syncState === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-            <span className="text-sm text-muted-foreground animate-pulse">Loading document…</span>
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 animate-fade-in">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-brand" /> Loading document…
+            </span>
           </div>
         )}
         {shareToken && syncState === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
             <span className="text-sm text-muted-foreground">Could not connect to document. The link may have expired.</span>
           </div>
         )}
         <EditorContent
           editor={editor}
           className={cn(
-            'prose prose-sm max-w-none p-8 min-h-full focus:outline-none',
-            isFocused && 'max-w-[680px] w-full'
+            'mx-auto w-full max-w-[720px] px-8 pt-12 focus:outline-none sm:px-12',
+            isFocused && 'pt-24'
           )}
         />
       </div>

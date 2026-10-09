@@ -1,211 +1,90 @@
 import { Editor as TiptapEditor } from '@tiptap/react'
+import {
+  Bold, Italic, Strikethrough, Underline, Code, Heading1, Heading2, Heading3,
+  List, ListOrdered, Quote, SquareCode, Minus, RemoveFormatting, Maximize2, Minimize2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useFocus } from '@/context/FocusContext'
 import { cn } from '@/lib/utils'
-
 
 interface Props {
   editor: TiptapEditor | null
 }
 
 function Divider() {
-  return <div className="w-px h-5 bg-border mx-1" />
+  return <div className="mx-1 h-5 w-px bg-border" />
 }
 
 function ToolBtn({
   onClick,
   active,
   title,
-  children,
+  icon: Icon,
 }: {
   onClick: () => void
   active?: boolean
   title: string
-  children: React.ReactNode
+  icon: LucideIcon
 }) {
   return (
     <button
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
       title={title}
+      aria-pressed={active}
       className={cn(
-        'flex items-center justify-center w-8 h-8 rounded text-sm transition-colors',
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
         active
-          ? 'bg-foreground text-background'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          ? 'bg-brand-soft text-brand'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
       )}
     >
-      {children}
+      <Icon className="h-4 w-4" strokeWidth={2.2} />
     </button>
   )
 }
 
 export function EditorToolbar({ editor }: Props) {
   const { isFocused, toggleFocus } = useFocus()
-  if (!editor) return null
+  if (!editor) return <div className="h-11 flex-1" />
+
+  const chain = () => editor.chain().focus()
 
   return (
-    <div className="flex items-center gap-0.5 px-3 py-1.5 flex-1">
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        active={editor.isActive('bold')}
-        title="Bold (⌘B)"
-      >
-        <span className="font-bold text-[13px]">B</span>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        active={editor.isActive('italic')}
-        title="Italic (⌘I)"
-      >
-        <span className="italic text-[13px]">I</span>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleStrike?.().run()}
-        active={editor.isActive('strike')}
-        title="Strikethrough"
-      >
-        <span className="line-through text-[13px]">S</span>
-      </ToolBtn>
-
-      <ToolBtn
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onClick={() => (editor.chain().focus() as any).toggleUnderline().run()}
-        active={editor.isActive('underline')}
-        title="Underline (⌘U)"
-      >
-        <span className="underline text-[13px]">U</span>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        active={editor.isActive('code')}
-        title="Inline code"
-      >
-        <span className="font-mono text-[12px]">`</span>
-      </ToolBtn>
+    <div className="scrollbar-thin flex h-11 flex-1 items-center gap-0.5 overflow-x-auto">
+      <ToolBtn icon={Bold} title="Bold (⌘B)" active={editor.isActive('bold')} onClick={() => chain().toggleBold().run()} />
+      <ToolBtn icon={Italic} title="Italic (⌘I)" active={editor.isActive('italic')} onClick={() => chain().toggleItalic().run()} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <ToolBtn icon={Underline} title="Underline (⌘U)" active={editor.isActive('underline')} onClick={() => (chain() as any).toggleUnderline().run()} />
+      <ToolBtn icon={Strikethrough} title="Strikethrough" active={editor.isActive('strike')} onClick={() => chain().toggleStrike().run()} />
+      <ToolBtn icon={Code} title="Inline code" active={editor.isActive('code')} onClick={() => chain().toggleCode().run()} />
 
       <Divider />
 
-      <ToolBtn
-        onClick={() => editor.chain().focus().setHeading({ level: 1 }).run()}
-        active={editor.isActive('heading', { level: 1 })}
-        title="Heading 1"
-      >
-        <span className="text-[11px] font-bold">H1</span>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().setHeading({ level: 2 }).run()}
-        active={editor.isActive('heading', { level: 2 })}
-        title="Heading 2"
-      >
-        <span className="text-[11px] font-bold">H2</span>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().setHeading({ level: 3 }).run()}
-        active={editor.isActive('heading', { level: 3 })}
-        title="Heading 3"
-      >
-        <span className="text-[11px] font-bold">H3</span>
-      </ToolBtn>
+      <ToolBtn icon={Heading1} title="Heading 1" active={editor.isActive('heading', { level: 1 })} onClick={() => chain().toggleHeading({ level: 1 }).run()} />
+      <ToolBtn icon={Heading2} title="Heading 2" active={editor.isActive('heading', { level: 2 })} onClick={() => chain().toggleHeading({ level: 2 }).run()} />
+      <ToolBtn icon={Heading3} title="Heading 3" active={editor.isActive('heading', { level: 3 })} onClick={() => chain().toggleHeading({ level: 3 }).run()} />
 
       <Divider />
 
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        active={editor.isActive('bulletList')}
-        title="Bullet list"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <circle cx="2.5" cy="4.5" r="1.5" fill="currentColor"/>
-          <rect x="5" y="3.75" width="9" height="1.5" rx="0.75" fill="currentColor"/>
-          <circle cx="2.5" cy="10.5" r="1.5" fill="currentColor"/>
-          <rect x="5" y="9.75" width="9" height="1.5" rx="0.75" fill="currentColor"/>
-        </svg>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        active={editor.isActive('orderedList')}
-        title="Numbered list"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M1 2h1.5v4H1V2zm0 6h1.5v4H1V8z" fill="currentColor" opacity="0.7"/>
-          <rect x="4.5" y="3.75" width="9" height="1.5" rx="0.75" fill="currentColor"/>
-          <rect x="4.5" y="9.75" width="9" height="1.5" rx="0.75" fill="currentColor"/>
-        </svg>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        active={editor.isActive('blockquote')}
-        title="Blockquote"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <rect x="1.5" y="2.5" width="2" height="10" rx="1" fill="currentColor"/>
-          <path d="M5.5 5h8M5.5 7.5h6M5.5 10h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-        </svg>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        active={editor.isActive('codeBlock')}
-        title="Code block"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M5 4L1 7.5L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M10 4L14 7.5L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M8.5 2L6.5 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      </ToolBtn>
-
-      <ToolBtn
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-        active={false}
-        title="Horizontal rule"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M1.5 7.5h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      </ToolBtn>
+      <ToolBtn icon={List} title="Bullet list" active={editor.isActive('bulletList')} onClick={() => chain().toggleBulletList().run()} />
+      <ToolBtn icon={ListOrdered} title="Numbered list" active={editor.isActive('orderedList')} onClick={() => chain().toggleOrderedList().run()} />
+      <ToolBtn icon={Quote} title="Quote" active={editor.isActive('blockquote')} onClick={() => chain().toggleBlockquote().run()} />
+      <ToolBtn icon={SquareCode} title="Code block" active={editor.isActive('codeBlock')} onClick={() => chain().toggleCodeBlock().run()} />
+      <ToolBtn icon={Minus} title="Divider" onClick={() => chain().setHorizontalRule().run()} />
 
       <Divider />
 
-      <ToolBtn
-        onClick={() => editor.chain().focus().unsetAllMarks().run()}
-        active={false}
-        title="Clear formatting"
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M3 3l9 9M5 2h7l-2 5h-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M3 13h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-        </svg>
-      </ToolBtn>
+      <ToolBtn icon={RemoveFormatting} title="Clear formatting" onClick={() => chain().unsetAllMarks().clearNodes().run()} />
 
       <div className="flex-1" />
 
       <button
         onMouseDown={(e) => { e.preventDefault(); toggleFocus() }}
         title="Focus mode (⌘⇧F)"
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 h-8 rounded hover:bg-muted transition-colors"
+        className="btn-ghost h-8 shrink-0 px-2 text-xs"
       >
-        {isFocused ? (
-          <>
-            <svg width="13" height="13" viewBox="0 0 15 15" fill="none">
-              <path d="M1.5 1.5L5.5 5.5M13.5 1.5L9.5 5.5M1.5 13.5L5.5 9.5M13.5 13.5L9.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-            Exit focus
-          </>
-        ) : (
-          <>
-            <svg width="13" height="13" viewBox="0 0 15 15" fill="none">
-              <path d="M1.5 5.5V1.5H5.5M9.5 1.5H13.5V5.5M13.5 9.5V13.5H9.5M5.5 13.5H1.5V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Focus
-          </>
-        )}
+        {isFocused ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+        <span className="hidden md:inline">{isFocused ? 'Exit focus' : 'Focus'}</span>
       </button>
     </div>
   )

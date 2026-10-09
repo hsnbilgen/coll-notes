@@ -75,7 +75,7 @@ services:
       start_period: 30s
     deploy:
       # Single replica only — y-websocket holds room state in process memory.
-      # Multiple replicas would silently fork documents. See INTERVIEW_NOTES.md.
+      # Multiple replicas would silently fork documents (rooms live in process memory).
       replicas: 1
       resources:
         limits:

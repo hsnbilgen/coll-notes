@@ -49,11 +49,11 @@ export function PresenceAvatars({ provider }: Props) {
   const overflow = users.length - 5
 
   return (
-    <div className="flex items-center pr-3">
+    <div className="flex shrink-0 items-center pl-1">
       <div className="flex items-center" style={{ direction: 'rtl' }}>
         {overflow > 0 && (
           <div
-            className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground -ml-2 first:ml-0"
+            className="w-7 h-7 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground -ml-2 first:ml-0"
             style={{ direction: 'ltr' }}
           >
             +{overflow}
@@ -62,13 +62,13 @@ export function PresenceAvatars({ provider }: Props) {
         {[...visible].reverse().map((u) => (
           <div key={u.clientId} className="relative group -ml-2 first:ml-0">
             <div
-              className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-white text-xs font-semibold cursor-default select-none"
+              className="w-7 h-7 rounded-full border-2 border-background shadow-sm transition-transform hover:-translate-y-0.5 hover:z-10 flex items-center justify-center text-white text-[10px] font-semibold cursor-default select-none"
               style={{ backgroundColor: u.color, direction: 'ltr' }}
             >
               {initials(u.name)}
             </div>
             {/* Tooltip — shown below the avatar since toolbar sits at top of page */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-foreground text-background text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-foreground text-background text-xs font-medium rounded-md shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-foreground" />
               {u.name}
             </div>
@@ -77,9 +77,12 @@ export function PresenceAvatars({ provider }: Props) {
       </div>
 
       {/* Live indicator */}
-      <div className="flex items-center gap-1 ml-2 pl-2 border-l">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-        <span className="text-xs text-muted-foreground">{users.length} live</span>
+      <div className="ml-2 flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        </span>
+        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">{users.length} live</span>
       </div>
     </div>
   )
