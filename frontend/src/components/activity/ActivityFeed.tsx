@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { WebsocketProvider } from '@/types/y-websocket'
+import { Activity, X } from 'lucide-react'
 
 type ActivityType = 'created' | 'renamed' | 'edited' | 'version_saved' | 'version_restored' | 'shared' | 'collaborator_joined'
 
@@ -71,47 +72,50 @@ export function ActivityFeed({ documentId, provider, onClose }: Props) {
   }, [provider])
 
   return (
-    <div className="w-72 border-l bg-background flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <h2 className="font-semibold text-sm">Activity</h2>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-sm">✕</button>
+    <aside className="panel">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Activity className="h-4 w-4 text-brand" /> Activity
+        </h2>
+        <button onClick={onClose} title="Close" className="btn-ghost h-7 w-7"><X className="h-4 w-4" /></button>
       </div>
 
       {activeUsers.length > 0 && (
-        <div className="px-4 py-3 border-b">
-          <p className="text-xs text-muted-foreground uppercase font-medium mb-2">Now viewing</p>
-          <div className="flex flex-col gap-1.5">
+        <div className="border-b px-4 py-4">
+          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">In this note now</p>
+          <div className="flex flex-col gap-2">
             {activeUsers.map((u, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="flex items-center gap-2.5">
                 <span
-                  className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
                   style={{ backgroundColor: u.color }}
-                />
-                <span className="text-sm truncate">{u.name}</span>
+                >
+                  {u.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="truncate text-sm">{u.name}</span>
+                <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        <p className="text-xs text-muted-foreground uppercase font-medium mb-2">Recent edits</p>
+      <div className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Timeline</p>
         {activity.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activity yet</p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <ol className="relative ml-1 border-l">
             {activity.map((event, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor(event.type)}`} />
-                <div>
-                  <p className="text-sm">{event.label}</p>
-                  <p className="text-xs text-muted-foreground">{timeAgo(event.timestamp)}</p>
-                </div>
-              </div>
+              <li key={i} className="relative pb-4 pl-5 last:pb-0">
+                <span className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-card ${dotColor(event.type)}`} />
+                <p className="text-sm leading-snug">{event.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(event.timestamp)}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         )}
       </div>
-    </div>
+    </aside>
   )
 }

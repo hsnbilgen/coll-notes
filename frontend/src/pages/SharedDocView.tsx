@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { Editor } from '@/components/editor/Editor'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
+import { PermissionBadge, ViewerChip, CenteredMessage } from '@/components/sharing/SharedHeader'
 
 interface ShareData {
   document: { id: string; title: string }
@@ -33,33 +34,16 @@ export function SharedDocView({ shareToken }: Props) {
     return () => { cancelled = true }
   }, [shareToken, qc])
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        {error}
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        Loading…
-      </div>
-    )
-  }
+  if (error) return <CenteredMessage error>{error}</CenteredMessage>
+  if (!data) return <CenteredMessage>Opening shared note…</CenteredMessage>
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-3 border-b flex items-center gap-3">
-        <span className="font-semibold">{data.document.title || 'Untitled'}</span>
-        <span className="text-xs text-muted-foreground px-2 py-0.5 rounded border">
-          {data.permission === 'READ_ONLY' ? 'Read only' : 'Collaborative editing'}
-        </span>
-        <span className="ml-auto text-xs text-muted-foreground">
-          Viewing as {user?.email}
-        </span>
-      </div>
+    <div className="flex h-full flex-col">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
+        <h1 className="truncate font-serif text-xl tracking-tight">{data.document.title || 'Untitled'}</h1>
+        <PermissionBadge permission={data.permission} />
+        <ViewerChip name={user?.email ?? ''} />
+      </header>
       <div className="flex-1 overflow-hidden">
         <Editor
           documentId={data.document.id}

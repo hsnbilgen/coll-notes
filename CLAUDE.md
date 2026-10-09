@@ -1,6 +1,6 @@
 # coll-notes — Claude Instructions
 
-Real-time collaborative note-taking app built as a job interview assignment.
+Real-time collaborative note-taking app (side project).
 
 ## Stack
 

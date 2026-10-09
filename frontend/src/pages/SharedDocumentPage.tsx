@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { Editor } from '@/components/editor/Editor'
 import { getToken } from '@/lib/auth'
+import { LogoMark } from '@/components/Logo'
+import { PermissionBadge, ViewerChip, CenteredMessage } from '@/components/sharing/SharedHeader'
 
 interface ShareData {
   document: { id: string; title: string }
@@ -34,27 +36,19 @@ export function SharedDocumentPage() {
       .catch(() => setError('This link is invalid or has expired.'))
   }, [token, navigate])
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        {error}
-      </div>
-    )
-  }
-
-  if (!data) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>
-  }
+  if (error) return <div className="h-screen"><CenteredMessage error>{error}</CenteredMessage></div>
+  if (!data) return <div className="h-screen"><CenteredMessage>Opening shared note…</CenteredMessage></div>
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="px-6 py-3 border-b flex items-center gap-3">
-        <span className="font-semibold">{data.document.title}</span>
-        <span className="text-xs text-muted-foreground px-2 py-0.5 rounded border">
-          {data.permission === 'READ_ONLY' ? 'Read only' : 'Collaborative editing'}
-        </span>
-        <span className="ml-auto text-xs text-muted-foreground">Viewing as {name}</span>
-      </div>
+    <div className="flex h-screen flex-col">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4 sm:px-6">
+        <Link to="/login" title="Coll Notes"><LogoMark className="h-6 w-6" /></Link>
+        <span className="h-5 w-px bg-border" />
+        <h1 className="truncate font-serif text-xl tracking-tight">{data.document.title || 'Untitled'}</h1>
+        <PermissionBadge permission={data.permission} />
+        <ViewerChip name={name} />
+        <Link to="/register" className="btn-primary hidden h-8 px-3 text-xs sm:inline-flex">Get your own workspace</Link>
+      </header>
       <div className="flex-1 overflow-hidden">
         <Editor
           documentId={data.document.id}
